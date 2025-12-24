@@ -146,7 +146,13 @@ class ThreesGame {
         this.gameBoard.addEventListener('touchstart', (e) => {
             this.touchStartX = e.touches[0].clientX;
             this.touchStartY = e.touches[0].clientY;
-        }, { passive: true });
+            e.preventDefault(); // ページスクロールを防止
+        }, { passive: false }); // passiveをfalseに変更
+
+        this.gameBoard.addEventListener('touchmove', (e) => {
+            // タッチ移動中のスクロールを防止
+            e.preventDefault();
+        }, { passive: false });
 
         this.gameBoard.addEventListener('touchend', (e) => {
             if (this.isMoving) return;
@@ -168,7 +174,8 @@ class ThreesGame {
                     this.move(deltaY > 0 ? 'down' : 'up');
                 }
             }
-        }, { passive: true });
+            e.preventDefault(); // ページスクロールを防止
+        }, { passive: false }); // passiveをfalseに変更
 
         // ボタン
         document.getElementById('new-game').addEventListener('click', () => {
