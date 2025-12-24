@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Threes! Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Threes!</h1>
+            <div class="score-container">
+                <div class="score">
+                    <span class="score-label">スコア</span>
+                    <span class="score-value" id="score">0</span>
+                </div>
+                <div class="best">
+                    <span class="best-label">ベスト</span>
+                    <span class="best-value" id="best">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="game-info">
+            <p>1と2を組み合わせて3を作り、3以降は同じ数字同士を組み合わせます</p>
+            <div class="next-tile-preview">
+                <span class="next-label">次のタイル:</span>
+                <div id="next-tile" class="next-tile-display"></div>
+            </div>
+            <div class="button-group">
+                <button id="new-game" class="new-game-button">新しいゲーム</button>
+                <button id="ai-toggle" class="ai-toggle-button">AI自動操作 開始</button>
+            </div>
+        </div>
+
+        <div class="game-container">
+            <div id="game-board" class="game-board">
+                <!-- タイルはJavaScriptで生成 -->
+            </div>
+            <div id="ai-indicator" class="ai-indicator hidden">
+                <span>🤖 AI操作中...</span>
+            </div>
+            <div id="game-over" class="game-over hidden">
+                <h2>ゲームオーバー</h2>
+                <p>最終スコア: <span id="final-score">0</span></p>
+                <button id="restart-button" class="restart-button">もう一度</button>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <p><strong>操作方法:</strong> 矢印キー ←↑→↓ またはスワイプでタイルを動かします</p>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>

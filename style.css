@@ -1,0 +1,401 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Gill Sans', 'Gill Sans MT', 'Trebuchet MS', sans-serif;
+    background: #FAF8EF;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.container {
+    max-width: 500px;
+    width: 100%;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #776e65;
+}
+
+.header h1 {
+    font-size: 3em;
+    margin-bottom: 15px;
+    font-weight: bold;
+    text-shadow: none;
+}
+
+.score-container {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+.score, .best {
+    background: #bbada0;
+    padding: 10px 20px;
+    border-radius: 5px;
+    color: white;
+}
+
+.score-label, .best-label {
+    display: block;
+    font-size: 0.9em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.score-value, .best-value {
+    display: block;
+    font-size: 1.5em;
+    font-weight: bold;
+    margin-top: 5px;
+}
+
+.game-info {
+    text-align: center;
+    margin-bottom: 15px;
+    color: #776e65;
+}
+
+.game-info p {
+    margin-bottom: 10px;
+    font-size: 0.9em;
+}
+
+.next-tile-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.next-label {
+    font-size: 1em;
+    font-weight: bold;
+    color: #776e65;
+}
+
+.next-tile-display {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 6px;
+    font-size: 1.5em;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.new-game-button,
+.ai-toggle-button {
+    background: #ff6b6b;
+    color: white;
+    border: none;
+    padding: 10px 25px;
+    border-radius: 8px;
+    font-size: 1em;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.ai-toggle-button {
+    background: #4caf50;
+}
+
+.ai-toggle-button.active {
+    background: #f44336;
+}
+
+.new-game-button:hover,
+.ai-toggle-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
+}
+
+.new-game-button:hover {
+    background: #ff5252;
+}
+
+.ai-toggle-button:hover {
+    background: #45a049;
+}
+
+.ai-toggle-button.active:hover {
+    background: #e53935;
+}
+
+.new-game-button:active,
+.ai-toggle-button:active {
+    transform: translateY(0);
+}
+
+.game-container {
+    position: relative;
+    width: 100%;
+    padding-bottom: 100%;
+    background: #B8A68C;
+    border-radius: 12px;
+    border: 4px solid #8B7355;
+    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.15);
+}
+
+.game-board {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 8px;
+    padding: 8px;
+}
+
+.cell {
+    background: #D4C5B0;
+    border-radius: 6px;
+}
+
+.tile {
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2em;
+    font-weight: bold;
+    border-radius: 6px;
+    transition: left 0.12s ease-out, top 0.12s ease-out, transform 0.15s ease;
+    color: white;
+    text-shadow: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+/* タイルの色 - Threesオリジナル */
+.tile-1 {
+    background: #89CFF0;
+    color: white;
+}
+
+.tile-2 {
+    background: #E07B9F;
+    color: white;
+}
+
+.tile-3 {
+    background: #ffffff;
+    color: #555555;
+}
+
+.tile-6 {
+    background: #ffffff;
+    color: #555555;
+}
+
+.tile-12 {
+    background: #ffffff;
+    color: #555555;
+}
+
+.tile-24 {
+    background: #ffffff;
+    color: #555555;
+}
+
+.tile-48 {
+    background: #ffffff;
+    color: #555555;
+}
+
+.tile-96 {
+    background: #ffffff;
+    color: #555555;
+}
+
+.tile-192 {
+    background: #D49999;
+    color: #555555;
+}
+
+.tile-384 {
+    background: #ffffff;
+    color: #555555;
+}
+
+.tile-768 {
+    background: #ffffff;
+    color: #555555;
+}
+
+.tile-1536 {
+    background: #ffffff;
+    color: #555555;
+}
+
+.tile-3072 {
+    background: #ffffff;
+    color: #555555;
+}
+
+.tile-6144 {
+    background: #ffffff;
+    color: #555555;
+}
+
+/* 新しいタイルのアニメーション */
+.tile-new {
+    animation: appear 0.15s ease;
+}
+
+@keyframes appear {
+    from {
+        transform: scale(0);
+    }
+    to {
+        transform: scale(1);
+    }
+}
+
+/* マージアニメーション */
+.tile-merged {
+    animation: merge 0.15s ease;
+}
+
+@keyframes merge {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.15);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.ai-indicator {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(76, 175, 80, 0.9);
+    color: white;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 0.9em;
+    font-weight: bold;
+    z-index: 50;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    animation: pulse 2s infinite;
+}
+
+.ai-indicator.hidden {
+    display: none;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.game-over {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-radius: 15px;
+    color: white;
+    z-index: 100;
+}
+
+.game-over.hidden {
+    display: none;
+}
+
+.game-over h2 {
+    font-size: 2.5em;
+    margin-bottom: 20px;
+}
+
+.game-over p {
+    font-size: 1.5em;
+    margin-bottom: 30px;
+}
+
+.restart-button {
+    background: #4caf50;
+    color: white;
+    border: none;
+    padding: 15px 40px;
+    border-radius: 8px;
+    font-size: 1.2em;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.restart-button:hover {
+    background: #45a049;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
+}
+
+.restart-button:active {
+    transform: translateY(0);
+}
+
+.instructions {
+    text-align: center;
+    margin-top: 20px;
+    color: #776e65;
+    font-size: 0.9em;
+    opacity: 0.8;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 600px) {
+    .header h1 {
+        font-size: 2em;
+    }
+
+    .tile {
+        font-size: 1.5em;
+    }
+
+    .game-over h2 {
+        font-size: 2em;
+    }
+
+    .game-over p {
+        font-size: 1.2em;
+    }
+}
