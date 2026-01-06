@@ -37,21 +37,38 @@
                 </button>
                 <button id="delete-mode-button" class="delete-mode-button" title="マス削除モード">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                        <path d="M3 6h18v2H3V6zm2 3h2l1 11h8l1-11h2l-1.5 13H5.5L4 9zm7-5c1.1 0 2 .9 2 2h4v2H6V6h4c0-1.1.9-2 2-2zm0 2c-.6 0-1-.4-1-1h2c0 .6-.4 1-1 1z"/>
-                        <rect x="10" y="10" width="4" height="8" rx="1"/>
+                        <!-- ゴミ箱の蓋 -->
+                        <path d="M3 6h18v2H3z"/>
+                        <!-- ゴミ箱本体 -->
+                        <path d="M5 8h14l-1 13H6L5 8z" rx="1"/>
+                        <!-- ゴミ箱の縦線 -->
+                        <rect x="9" y="10" width="1.5" height="9" rx="0.5"/>
+                        <rect x="12.5" y="10" width="1.5" height="9" rx="0.5"/>
+                        <rect x="15.5" y="10" width="1.5" height="9" rx="0.5"/>
+                        <!-- ゴミ箱の取っ手部分 -->
+                        <path d="M8 6V5c0-1 1-2 2-2h4c1 0 2 1 2 2v1"/>
                     </svg>
                 </button>
                 <button id="ai-toggle" class="ai-toggle-button" title="AI自動操作">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                        <rect x="7" y="3" width="10" height="14" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
-                        <circle cx="12" cy="7" r="1.5"/>
-                        <circle cx="9" cy="11" r="1"/>
-                        <circle cx="15" cy="11" r="1"/>
-                        <path d="M9 14h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                        <rect x="9" y="18" width="2" height="3"/>
-                        <rect x="13" y="18" width="2" height="3"/>
-                        <circle cx="6" cy="10" r="1.5"/>
-                        <circle cx="18" cy="10" r="1.5"/>
+                        <!-- アンテナ -->
+                        <circle cx="12" cy="2" r="1.5"/>
+                        <rect x="11.5" y="3" width="1" height="2"/>
+                        <!-- ロボットの頭部 -->
+                        <rect x="6" y="5" width="12" height="10" rx="1.5"/>
+                        <!-- 目 -->
+                        <circle cx="9" cy="9" r="2" fill="#FAF8EF"/>
+                        <circle cx="15" cy="9" r="2" fill="#FAF8EF"/>
+                        <!-- 口（歯） -->
+                        <rect x="7.5" y="13" width="1.5" height="1.5" fill="#FAF8EF"/>
+                        <rect x="10" y="13" width="1.5" height="1.5" fill="#FAF8EF"/>
+                        <rect x="12.5" y="13" width="1.5" height="1.5" fill="#FAF8EF"/>
+                        <rect x="15" y="13" width="1.5" height="1.5" fill="#FAF8EF"/>
+                        <!-- 腕 -->
+                        <rect x="3" y="8" width="2.5" height="5" rx="0.5"/>
+                        <rect x="18.5" y="8" width="2.5" height="5" rx="0.5"/>
+                        <!-- 体（下部） -->
+                        <rect x="8" y="15.5" width="8" height="6" rx="1"/>
                     </svg>
                 </button>
                 <button id="ai-debug-toggle" class="ai-debug-button" title="AI分析パネル">
