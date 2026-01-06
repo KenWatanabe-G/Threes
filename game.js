@@ -122,10 +122,10 @@ class ThreesGame {
             this.gameBoard.appendChild(cell);
         }
 
-        // コミット閾値を計算（セルサイズの80%）
+        // コミット閾値を計算（セルサイズの90%）
         setTimeout(() => {
             const cellSize = this.gameBoard.offsetWidth / this.gridSize;
-            this.commitThreshold = cellSize * 0.8; // セルサイズの80%
+            this.commitThreshold = cellSize * 0.9; // セルサイズの90%
         }, 0);
     }
 
