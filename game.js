@@ -362,12 +362,10 @@ class ThreesGame {
         const button = document.getElementById('ai-toggle');
 
         if (this.aiMode) {
-            button.textContent = 'AI自動操作 停止';
             button.classList.add('active');
             this.aiIndicatorElement.classList.remove('hidden');
             this.startAI();
         } else {
-            button.textContent = 'AI自動操作 開始';
             button.classList.remove('active');
             this.aiIndicatorElement.classList.add('hidden');
             this.stopAI();

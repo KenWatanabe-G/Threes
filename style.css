@@ -110,22 +110,17 @@ body {
 }
 
 .new-game-button,
-.ai-toggle-button,
 .undo-button {
     background: #ff6b6b;
     color: white;
     border: none;
-    padding: 10px 25px;
+    padding: 10px 20px;
     border-radius: 8px;
-    font-size: 1em;
+    font-size: 0.9em;
     cursor: pointer;
     font-weight: bold;
     transition: all 0.3s ease;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-}
-
-.ai-toggle-button {
-    background: #4caf50;
 }
 
 .undo-button {
@@ -136,6 +131,24 @@ body {
     background: #95a5a6;
     cursor: not-allowed;
     opacity: 0.6;
+}
+
+.ai-toggle-button {
+    background: #4caf50;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 50%;
+    font-size: 1.8em;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .ai-toggle-button.active {
