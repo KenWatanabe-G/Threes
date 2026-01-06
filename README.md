@@ -100,8 +100,7 @@ threes/
 ├── apple-touch-icon.png # アップルタッチアイコン
 ├── generate-icon.html # アイコン生成ツール
 ├── create-icon.sh     # アイコン生成スクリプト
-├── AI_STRATEGY.md     # AI戦略ドキュメント（日本語）
-├── AI_STRATEGY2.md    # AI設計ドキュメント（日本語）
+├── AI_STRATEGY.md     # AI戦略ドキュメント
 ├── README.md          # このファイル
 └── CLAUDE.md          # 技術仕様書
 ```
@@ -115,7 +114,7 @@ AIは以下の戦略を実装しています：
 3. **デッキカウンティング**: 次に出るタイルの確率を計算
 4. **Expectimax探索**: 深さ3での期待値最大化
 
-詳細は[AI_STRATEGY.md](AI_STRATEGY.md)と[AI_STRATEGY2.md](AI_STRATEGY2.md)を参照してください。
+詳細は[AI_STRATEGY.md](AI_STRATEGY.md)を参照してください。
 
 ## 🚀 今後の拡張予定
 

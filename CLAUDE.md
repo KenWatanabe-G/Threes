@@ -174,6 +174,8 @@ saveState() {
 
 ## 🤖 AI実装詳細
 
+> **詳細なAI戦略設計については[AI_STRATEGY.md](AI_STRATEGY.md)を参照してください。**
+
 ### Expectimaxアルゴリズム
 
 **探索木構造:**
