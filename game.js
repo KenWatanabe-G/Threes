@@ -405,6 +405,11 @@ class ThreesGame {
             }
         });
 
+        // クリップボードコピーボタン
+        document.getElementById('copy-board-button').addEventListener('click', () => {
+            this.copyBoardToClipboard();
+        });
+
         // ゲーム状態が変わったらパネルを更新（移動後など）
         // move()メソッド内で updateDebugPanel() を呼ぶ
     }
@@ -1154,6 +1159,53 @@ class ThreesGame {
         // UIを更新
         this.render();
         this.updateUndoButton();
+    }
+
+    copyBoardToClipboard() {
+        // 盤面の状態をテキスト形式で作成
+        const grid = this.getGrid();
+        let boardText = 'Threes! 盤面状態\n';
+        boardText += '==================\n\n';
+
+        // グリッドを表示
+        for (let row = 0; row < this.gridSize; row++) {
+            let rowText = '';
+            for (let col = 0; col < this.gridSize; col++) {
+                const tileId = grid[row][col];
+                if (tileId === null) {
+                    rowText += '    -';
+                } else {
+                    const tile = this.tiles[tileId];
+                    const value = tile.value.toString();
+                    rowText += value.padStart(5, ' ');
+                }
+                if (col < this.gridSize - 1) {
+                    rowText += ' |';
+                }
+            }
+            boardText += rowText + '\n';
+            if (row < this.gridSize - 1) {
+                boardText += '------+------+------+------\n';
+            }
+        }
+
+        boardText += '\n==================\n';
+        boardText += `スコア: ${this.score}\n`;
+        boardText += `次のタイル: ${this.nextTileValue || '?'}${this.nextTileIsBonus ? '+' : ''}\n`;
+
+        // クリップボードにコピー
+        navigator.clipboard.writeText(boardText).then(() => {
+            // コピー成功のフィードバック
+            const button = document.getElementById('copy-board-button');
+            const originalBg = button.style.background;
+            button.style.background = 'rgba(76, 175, 80, 0.8)';
+            setTimeout(() => {
+                button.style.background = originalBg;
+            }, 300);
+        }).catch(err => {
+            console.error('クリップボードへのコピーに失敗しました:', err);
+            alert('クリップボードへのコピーに失敗しました');
+        });
     }
 
     adjustFontSize(element, value) {

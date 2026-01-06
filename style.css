@@ -183,7 +183,41 @@ body {
 
 .delete-mode-button.active {
     background: #c0392b;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* クリップボードコピーボタン */
+.copy-board-button {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(119, 110, 101, 0.6);
+    color: white;
+    border: none;
+    padding: 8px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.copy-board-button:hover {
+    background: rgba(119, 110, 101, 0.8);
+    transform: scale(1.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.copy-board-button:active {
+    transform: scale(0.95);
+}
+
+.copy-board-button svg {
+    display: block;
 }
 
 .ai-toggle-button.active {
