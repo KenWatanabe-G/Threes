@@ -196,6 +196,9 @@ body {
     color: white;
     text-shadow: none;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    will-change: transform, left, top;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 
 /* タイルの色 - Threesオリジナル */

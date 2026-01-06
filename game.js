@@ -23,6 +23,7 @@ class ThreesGame {
         this.dragDirection = null;
         this.dragOffset = 0;
         this.commitThreshold = 0; // 動的に計算（初期化時に設定）
+        this.movableTilesCache = null; // 移動可能タイルのキャッシュ
 
         // デッキシステム（12枚のカード）
         this.deck = [];
@@ -163,6 +164,7 @@ class ThreesGame {
             this.isDragging = true;
             this.dragDirection = null;
             this.dragOffset = 0;
+            this.movableTilesCache = null; // キャッシュをクリア
             e.preventDefault();
         }, { passive: false });
 
@@ -238,6 +240,7 @@ class ThreesGame {
             this.isDragging = true;
             this.dragDirection = null;
             this.dragOffset = 0;
+            this.movableTilesCache = null; // キャッシュをクリア
             e.preventDefault();
         });
 
@@ -1579,130 +1582,134 @@ class ThreesGame {
     }
 
     renderDragPreview() {
+        // 移動可能なタイルを判定（初回のみ、以降はキャッシュを使用）
+        if (!this.movableTilesCache) {
+            const grid = this.getGrid();
+            const movableTiles = new Set();
+
+            if (this.dragDirection === 'left') {
+                for (let row = 0; row < this.gridSize; row++) {
+                    for (let col = 1; col < this.gridSize; col++) {
+                        const tileId = grid[row][col];
+                        if (tileId === null) continue;
+
+                        const tile = this.tiles[tileId];
+                        const targetCol = col - 1;
+
+                        if (grid[row][targetCol] === null) {
+                            movableTiles.add(tileId);
+                        } else {
+                            const targetTileId = grid[row][targetCol];
+                            const targetTile = this.tiles[targetTileId];
+                            if (this.canMerge(tile.value, targetTile.value)) {
+                                movableTiles.add(tileId);
+                            }
+                        }
+                    }
+                }
+            } else if (this.dragDirection === 'right') {
+                for (let row = 0; row < this.gridSize; row++) {
+                    for (let col = this.gridSize - 2; col >= 0; col--) {
+                        const tileId = grid[row][col];
+                        if (tileId === null) continue;
+
+                        const tile = this.tiles[tileId];
+                        const targetCol = col + 1;
+
+                        if (grid[row][targetCol] === null) {
+                            movableTiles.add(tileId);
+                        } else {
+                            const targetTileId = grid[row][targetCol];
+                            const targetTile = this.tiles[targetTileId];
+                            if (this.canMerge(tile.value, targetTile.value)) {
+                                movableTiles.add(tileId);
+                            }
+                        }
+                    }
+                }
+            } else if (this.dragDirection === 'up') {
+                for (let col = 0; col < this.gridSize; col++) {
+                    for (let row = 1; row < this.gridSize; row++) {
+                        const tileId = grid[row][col];
+                        if (tileId === null) continue;
+
+                        const tile = this.tiles[tileId];
+                        const targetRow = row - 1;
+
+                        if (grid[targetRow][col] === null) {
+                            movableTiles.add(tileId);
+                        } else {
+                            const targetTileId = grid[targetRow][col];
+                            const targetTile = this.tiles[targetTileId];
+                            if (this.canMerge(tile.value, targetTile.value)) {
+                                movableTiles.add(tileId);
+                            }
+                        }
+                    }
+                }
+            } else if (this.dragDirection === 'down') {
+                for (let col = 0; col < this.gridSize; col++) {
+                    for (let row = this.gridSize - 2; row >= 0; row--) {
+                        const tileId = grid[row][col];
+                        if (tileId === null) continue;
+
+                        const tile = this.tiles[tileId];
+                        const targetRow = row + 1;
+
+                        if (grid[targetRow][col] === null) {
+                            movableTiles.add(tileId);
+                        } else {
+                            const targetTileId = grid[targetRow][col];
+                            const targetTile = this.tiles[targetTileId];
+                            if (this.canMerge(tile.value, targetTile.value)) {
+                                movableTiles.add(tileId);
+                            }
+                        }
+                    }
+                }
+            }
+
+            this.movableTilesCache = movableTiles;
+        }
+
+        // キャッシュを使用
+        const movableTiles = this.movableTilesCache;
         const cellSize = 100 / this.gridSize;
         const gap = 0.8;
 
-        // ドラッグ中のオフセット（パーセント）を計算
-        const boardWidth = this.gameBoard.offsetWidth;
-        const boardHeight = this.gameBoard.offsetHeight;
+        // ドラッグオフセットをパーセントに変換
+        const cellSizeInPixels = this.gameBoard.offsetWidth / this.gridSize;
+        const offsetPercent = (this.dragOffset / cellSizeInPixels) * cellSize;
 
-        let offsetPercent = 0;
-        if (this.dragDirection === 'left' || this.dragDirection === 'right') {
-            offsetPercent = (this.dragOffset / boardWidth) * 100;
-        } else {
-            offsetPercent = (this.dragOffset / boardHeight) * 100;
-        }
-
-        // 移動可能なタイルを判定
-        const grid = this.getGrid();
-        const movableTiles = new Set();
-
-        if (this.dragDirection === 'left') {
-            for (let row = 0; row < this.gridSize; row++) {
-                for (let col = 1; col < this.gridSize; col++) {
-                    const tileId = grid[row][col];
-                    if (tileId === null) continue;
-
-                    const tile = this.tiles[tileId];
-                    const targetCol = col - 1;
-
-                    if (grid[row][targetCol] === null) {
-                        movableTiles.add(tileId);
-                    } else {
-                        const targetTileId = grid[row][targetCol];
-                        const targetTile = this.tiles[targetTileId];
-                        if (this.canMerge(tile.value, targetTile.value)) {
-                            movableTiles.add(tileId);
-                        }
-                    }
-                }
-            }
-        } else if (this.dragDirection === 'right') {
-            for (let row = 0; row < this.gridSize; row++) {
-                for (let col = this.gridSize - 2; col >= 0; col--) {
-                    const tileId = grid[row][col];
-                    if (tileId === null) continue;
-
-                    const tile = this.tiles[tileId];
-                    const targetCol = col + 1;
-
-                    if (grid[row][targetCol] === null) {
-                        movableTiles.add(tileId);
-                    } else {
-                        const targetTileId = grid[row][targetCol];
-                        const targetTile = this.tiles[targetTileId];
-                        if (this.canMerge(tile.value, targetTile.value)) {
-                            movableTiles.add(tileId);
-                        }
-                    }
-                }
-            }
-        } else if (this.dragDirection === 'up') {
-            for (let col = 0; col < this.gridSize; col++) {
-                for (let row = 1; row < this.gridSize; row++) {
-                    const tileId = grid[row][col];
-                    if (tileId === null) continue;
-
-                    const tile = this.tiles[tileId];
-                    const targetRow = row - 1;
-
-                    if (grid[targetRow][col] === null) {
-                        movableTiles.add(tileId);
-                    } else {
-                        const targetTileId = grid[targetRow][col];
-                        const targetTile = this.tiles[targetTileId];
-                        if (this.canMerge(tile.value, targetTile.value)) {
-                            movableTiles.add(tileId);
-                        }
-                    }
-                }
-            }
-        } else if (this.dragDirection === 'down') {
-            for (let col = 0; col < this.gridSize; col++) {
-                for (let row = this.gridSize - 2; row >= 0; row--) {
-                    const tileId = grid[row][col];
-                    if (tileId === null) continue;
-
-                    const tile = this.tiles[tileId];
-                    const targetRow = row + 1;
-
-                    if (grid[targetRow][col] === null) {
-                        movableTiles.add(tileId);
-                    } else {
-                        const targetTileId = grid[targetRow][col];
-                        const targetTile = this.tiles[targetTileId];
-                        if (this.canMerge(tile.value, targetTile.value)) {
-                            movableTiles.add(tileId);
-                        }
-                    }
-                }
-            }
-        }
-
-        // 移動可能なタイルのみを移動量に応じてシフト
+        // 移動可能なタイルのみを移動量に応じてシフト（GPU加速のためtransformを使用）
         Object.values(this.tiles).forEach(tile => {
             if (!tile.element) return;
 
             const baseLeft = tile.col * cellSize + gap;
             const baseTop = tile.row * cellSize + gap;
 
-            // 移動可能なタイルのみをシフト
+            // 元の位置を設定（left/topは変えない）
+            tile.element.style.left = `${baseLeft}%`;
+            tile.element.style.top = `${baseTop}%`;
+
+            // 移動可能なタイルのみをtransformでシフト
             if (movableTiles.has(tile.id)) {
                 if (this.dragDirection === 'left' || this.dragDirection === 'right') {
-                    tile.element.style.left = `${baseLeft + offsetPercent}%`;
-                    tile.element.style.top = `${baseTop}%`;
+                    // 横方向の移動
+                    const translateX = (offsetPercent / cellSize) * 100; // パーセント値に変換
+                    tile.element.style.transform = `translate(${translateX}%, 0)`;
                 } else {
-                    tile.element.style.left = `${baseLeft}%`;
-                    tile.element.style.top = `${baseTop + offsetPercent}%`;
+                    // 縦方向の移動
+                    const translateY = (offsetPercent / cellSize) * 100; // パーセント値に変換
+                    tile.element.style.transform = `translate(0, ${translateY}%)`;
                 }
                 // ドラッグ中はtransitionを無効化（即座に追従）
                 tile.element.style.transition = 'none';
                 // 移動中のタイルを最前面に表示
                 tile.element.style.zIndex = '100';
             } else {
-                // 移動できないタイルは元の位置
-                tile.element.style.left = `${baseLeft}%`;
-                tile.element.style.top = `${baseTop}%`;
+                // 移動できないタイルは変形なし
+                tile.element.style.transform = '';
                 tile.element.style.transition = 'none';
                 // z-indexをリセット
                 tile.element.style.zIndex = '';
@@ -1726,6 +1733,8 @@ class ThreesGame {
             tile.element.style.transition = '';
             tile.element.style.left = `${baseLeft}%`;
             tile.element.style.top = `${baseTop}%`;
+            // transformをリセット
+            tile.element.style.transform = '';
             // z-indexをリセット
             tile.element.style.zIndex = '';
         });
@@ -1756,6 +1765,7 @@ class ThreesGame {
                 tile.element.style.top = `${top}%`;
                 tile.element.style.width = `${size}%`;
                 tile.element.style.height = `${size}%`;
+                tile.element.style.transform = ''; // transformをリセット
 
                 if (tile.isNew) {
                     tile.element.classList.add('tile-new');
@@ -1773,6 +1783,12 @@ class ThreesGame {
                 tile.element.style.top = `${top}%`;
                 tile.element.style.width = `${size}%`;
                 tile.element.style.height = `${size}%`;
+                // transformをリセット（ドラッグ時のtransformを削除）
+                tile.element.style.transform = '';
+                // transitionを再度有効化
+                tile.element.style.transition = '';
+                // z-indexをリセット
+                tile.element.style.zIndex = '';
 
                 // マージ中のタイルにクラスを追加
                 if (tile.merging) {
