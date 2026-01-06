@@ -189,7 +189,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 2.8em;
+    font-size: 4em;
     font-weight: bold;
     border-radius: 8px;
     transition: left 0.12s ease-out, top 0.12s ease-out, transform 0.15s ease;

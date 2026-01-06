@@ -1581,6 +1581,23 @@ class ThreesGame {
         this.bestElement.textContent = this.bestScore;
     }
 
+    adjustFontSize(element, value) {
+        // 数字の桁数に応じてフォントサイズを調整
+        const digits = value.toString().length;
+
+        if (digits <= 2) {
+            element.style.fontSize = '4em'; // 1-99: 最大サイズ
+        } else if (digits === 3) {
+            element.style.fontSize = '3.2em'; // 100-999
+        } else if (digits === 4) {
+            element.style.fontSize = '2.6em'; // 1000-9999
+        } else if (digits === 5) {
+            element.style.fontSize = '2.1em'; // 10000-99999
+        } else {
+            element.style.fontSize = '1.7em'; // 100000以上
+        }
+    }
+
     renderDragPreview() {
         // 移動可能なタイルを判定（初回のみ、以降はキャッシュを使用）
         if (!this.movableTilesCache) {
@@ -1767,6 +1784,9 @@ class ThreesGame {
                 tile.element.style.height = `${size}%`;
                 tile.element.style.transform = ''; // transformをリセット
 
+                // 数字の桁数に応じてフォントサイズを調整
+                this.adjustFontSize(tile.element, tile.value);
+
                 if (tile.isNew) {
                     tile.element.classList.add('tile-new');
                 }
@@ -1789,6 +1809,9 @@ class ThreesGame {
                 tile.element.style.transition = '';
                 // z-indexをリセット
                 tile.element.style.zIndex = '';
+
+                // 数字の桁数に応じてフォントサイズを調整
+                this.adjustFontSize(tile.element, tile.value);
 
                 // マージ中のタイルにクラスを追加
                 if (tile.merging) {
@@ -1816,6 +1839,9 @@ class ThreesGame {
                         targetTile.element.className = `tile tile-${targetTile.value}`;
                         targetTile.element.textContent = targetTile.value;
                         targetTile.element.classList.add('tile-merged');
+
+                        // 数字の桁数に応じてフォントサイズを調整
+                        this.adjustFontSize(targetTile.element, targetTile.value);
 
                         // スコア更新
                         this.score += targetTile.value;
