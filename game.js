@@ -220,21 +220,31 @@ class ThreesGame {
         }, { passive: false });
 
         this.gameBoard.addEventListener('touchend', (e) => {
-            if (!this.isDragging || this.isMoving) {
+            if (!this.isDragging) {
+                return;
+            }
+
+            // 移動中の場合はキャンセル
+            if (this.isMoving) {
+                this.cancelDrag();
                 this.isDragging = false;
+                this.dragDirection = null;
+                this.dragOffset = 0;
+                this.movableTilesCache = null;
                 return;
             }
 
             // 閾値を超えていたら移動を確定
-            if (Math.abs(this.dragOffset) >= this.commitThreshold) {
+            if (this.dragDirection && Math.abs(this.dragOffset) >= this.commitThreshold) {
                 const direction = this.dragDirection;
 
                 // ドラッグ状態をクリア
                 this.isDragging = false;
                 this.dragDirection = null;
                 this.dragOffset = 0;
+                this.movableTilesCache = null;
 
-                // transformを維持したまま移動を実行
+                // 移動を実行
                 this.move(direction);
             } else {
                 // 閾値未満なら元に戻す
@@ -242,6 +252,7 @@ class ThreesGame {
                 this.isDragging = false;
                 this.dragDirection = null;
                 this.dragOffset = 0;
+                this.movableTilesCache = null;
             }
 
             e.preventDefault();
@@ -304,21 +315,31 @@ class ThreesGame {
         });
 
         this.gameBoard.addEventListener('mouseup', (e) => {
-            if (!this.isDragging || this.isMoving) {
+            if (!this.isDragging) {
+                return;
+            }
+
+            // 移動中の場合はキャンセル
+            if (this.isMoving) {
+                this.cancelDrag();
                 this.isDragging = false;
+                this.dragDirection = null;
+                this.dragOffset = 0;
+                this.movableTilesCache = null;
                 return;
             }
 
             // 閾値を超えていたら移動を確定
-            if (Math.abs(this.dragOffset) >= this.commitThreshold) {
+            if (this.dragDirection && Math.abs(this.dragOffset) >= this.commitThreshold) {
                 const direction = this.dragDirection;
 
                 // ドラッグ状態をクリア
                 this.isDragging = false;
                 this.dragDirection = null;
                 this.dragOffset = 0;
+                this.movableTilesCache = null;
 
-                // transformを維持したまま移動を実行
+                // 移動を実行
                 this.move(direction);
             } else {
                 // 閾値未満なら元に戻す
@@ -326,6 +347,7 @@ class ThreesGame {
                 this.isDragging = false;
                 this.dragDirection = null;
                 this.dragOffset = 0;
+                this.movableTilesCache = null;
             }
 
             e.preventDefault();
@@ -338,6 +360,7 @@ class ThreesGame {
                 this.isDragging = false;
                 this.dragDirection = null;
                 this.dragOffset = 0;
+                this.movableTilesCache = null;
             }
         });
 
@@ -685,11 +708,15 @@ class ThreesGame {
 
         this.isMoving = true;
 
-        // マージフラグをリセット
+        // マージフラグをリセット & ドラッグ中のtransformをクリア
         Object.values(this.tiles).forEach(tile => {
             tile.merged = false;
             tile.isNew = false;
             tile.merging = false;
+            // ドラッグプレビューのtransformをクリア
+            if (tile.element) {
+                tile.element.style.transform = '';
+            }
         });
 
         let moved = false;
@@ -1422,13 +1449,16 @@ class ThreesGame {
             const baseLeft = tile.col * cellSize + gap;
             const baseTop = tile.row * cellSize + gap;
 
-            // transitionを再度有効化してスムーズに戻す
-            tile.element.style.transition = '';
+            // transformをクリアして元の位置に戻す
+            tile.element.style.transform = '';
+            tile.element.style.transition = 'left 0.12s ease-out, top 0.12s ease-out';
             tile.element.style.left = `${baseLeft}%`;
             tile.element.style.top = `${baseTop}%`;
-            // z-indexをリセット
             tile.element.style.zIndex = '';
         });
+
+        // キャッシュをクリア
+        this.movableTilesCache = null;
 
         // render()を呼ばない（不要なアニメーション再生を防ぐ）
     }
