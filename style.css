@@ -283,21 +283,27 @@ body {
     }
 }
 
-/* マージアニメーション */
+/* マージアニメーション - ひっくり返るアニメーション */
 .tile-merged {
-    animation: merge 0.15s ease;
+    animation: flip 0.3s ease;
+    transform-style: preserve-3d;
 }
 
-@keyframes merge {
+@keyframes flip {
     0% {
-        transform: scale(1);
+        transform: rotateY(0deg) scale(1);
     }
     50% {
-        transform: scale(1.15);
+        transform: rotateY(90deg) scale(1.1);
     }
     100% {
-        transform: scale(1);
+        transform: rotateY(0deg) scale(1);
     }
+}
+
+/* 移動中のタイル（マージ前） */
+.tile-merging {
+    z-index: 100;
 }
 
 .ai-indicator {

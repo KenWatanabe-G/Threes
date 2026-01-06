@@ -1066,7 +1066,8 @@ class ThreesGame {
             col: col,
             element: null,
             isNew: isNew,
-            merged: false
+            merged: false,
+            merging: false  // マージ中フラグを追加
         };
         return id;
     }
@@ -1097,6 +1098,7 @@ class ThreesGame {
         Object.values(this.tiles).forEach(tile => {
             tile.merged = false;
             tile.isNew = false;
+            tile.merging = false;
         });
 
         let moved = false;
@@ -1165,11 +1167,12 @@ class ThreesGame {
                     const targetTile = this.tiles[targetTileId];
 
                     if (this.canMerge(tile.value, targetTile.value)) {
-                        targetTile.value = this.getMergedValue(tile.value, targetTile.value);
-                        targetTile.merged = true;
-                        this.score += targetTile.value;
-                        this.updateScore();
-                        delete this.tiles[tileId];
+                        // 移動するタイルに移動先をマーク
+                        tile.col = targetCol;
+                        tile.merging = true;
+                        tile.mergeTarget = targetTileId;
+                        tile.mergeValue = this.getMergedValue(tile.value, targetTile.value);
+
                         grid[row][col] = null;
                         moved = true;
                     }
@@ -1206,11 +1209,12 @@ class ThreesGame {
                     const targetTile = this.tiles[targetTileId];
 
                     if (this.canMerge(tile.value, targetTile.value)) {
-                        targetTile.value = this.getMergedValue(tile.value, targetTile.value);
-                        targetTile.merged = true;
-                        this.score += targetTile.value;
-                        this.updateScore();
-                        delete this.tiles[tileId];
+                        // 移動するタイルに移動先をマーク
+                        tile.col = targetCol;
+                        tile.merging = true;
+                        tile.mergeTarget = targetTileId;
+                        tile.mergeValue = this.getMergedValue(tile.value, targetTile.value);
+
                         grid[row][col] = null;
                         moved = true;
                     }
@@ -1247,11 +1251,12 @@ class ThreesGame {
                     const targetTile = this.tiles[targetTileId];
 
                     if (this.canMerge(tile.value, targetTile.value)) {
-                        targetTile.value = this.getMergedValue(tile.value, targetTile.value);
-                        targetTile.merged = true;
-                        this.score += targetTile.value;
-                        this.updateScore();
-                        delete this.tiles[tileId];
+                        // 移動するタイルに移動先をマーク
+                        tile.row = targetRow;
+                        tile.merging = true;
+                        tile.mergeTarget = targetTileId;
+                        tile.mergeValue = this.getMergedValue(tile.value, targetTile.value);
+
                         grid[row][col] = null;
                         moved = true;
                     }
@@ -1288,11 +1293,12 @@ class ThreesGame {
                     const targetTile = this.tiles[targetTileId];
 
                     if (this.canMerge(tile.value, targetTile.value)) {
-                        targetTile.value = this.getMergedValue(tile.value, targetTile.value);
-                        targetTile.merged = true;
-                        this.score += targetTile.value;
-                        this.updateScore();
-                        delete this.tiles[tileId];
+                        // 移動するタイルに移動先をマーク
+                        tile.row = targetRow;
+                        tile.merging = true;
+                        tile.mergeTarget = targetTileId;
+                        tile.mergeValue = this.getMergedValue(tile.value, targetTile.value);
+
                         grid[row][col] = null;
                         moved = true;
                     }
@@ -1439,6 +1445,9 @@ class ThreesGame {
         const cellSize = 100 / this.gridSize;
         const gap = 0.8;
 
+        // マージ処理を後で実行するためのリスト
+        const mergingTiles = [];
+
         Object.values(this.tiles).forEach(tile => {
             if (!tile.element) {
                 // 新しいタイル要素を作成
@@ -1467,22 +1476,16 @@ class ThreesGame {
                 const top = tile.row * cellSize + gap;
                 const size = cellSize - gap * 2;
 
-                // クラスを更新（値が変わった場合）
-                tile.element.className = `tile tile-${tile.value}`;
-                tile.element.textContent = tile.value;
-
                 // 位置を更新（アニメーション）
                 tile.element.style.left = `${left}%`;
                 tile.element.style.top = `${top}%`;
                 tile.element.style.width = `${size}%`;
                 tile.element.style.height = `${size}%`;
 
-                if (tile.merged) {
-                    tile.element.classList.add('tile-merged');
-                    // アニメーション後にクラスを削除
-                    setTimeout(() => {
-                        tile.element.classList.remove('tile-merged');
-                    }, 150);
+                // マージ中のタイルにクラスを追加
+                if (tile.merging) {
+                    tile.element.classList.add('tile-merging');
+                    mergingTiles.push(tile);
                 }
 
                 if (tile.isNew) {
@@ -1493,6 +1496,37 @@ class ThreesGame {
                 }
             }
         });
+
+        // マージアニメーション: 移動完了後にターゲットタイルを更新
+        if (mergingTiles.length > 0) {
+            setTimeout(() => {
+                mergingTiles.forEach(tile => {
+                    const targetTile = this.tiles[tile.mergeTarget];
+                    if (targetTile && targetTile.element) {
+                        // ターゲットタイルの値を更新してフリップアニメーション
+                        targetTile.value = tile.mergeValue;
+                        targetTile.element.className = `tile tile-${targetTile.value}`;
+                        targetTile.element.textContent = targetTile.value;
+                        targetTile.element.classList.add('tile-merged');
+
+                        // スコア更新
+                        this.score += targetTile.value;
+                        this.updateScore();
+
+                        // アニメーション後にクラスを削除
+                        setTimeout(() => {
+                            targetTile.element.classList.remove('tile-merged');
+                        }, 300);
+                    }
+
+                    // 移動したタイルを削除
+                    if (tile.element) {
+                        tile.element.remove();
+                    }
+                    delete this.tiles[tile.id];
+                });
+            }, 120); // 移動アニメーション完了後
+        }
 
         // 削除されたタイルの要素を削除
         const existingElements = this.gameBoard.querySelectorAll('.tile');
