@@ -219,17 +219,23 @@ class ThreesGame {
 
             // 閾値を超えていたら移動を確定
             if (Math.abs(this.dragOffset) >= this.commitThreshold) {
-                // 移動確定時はまずtransformをクリア
-                this.clearDragTransforms();
-                this.move(this.dragDirection);
+                const direction = this.dragDirection;
+
+                // ドラッグ状態をクリア
+                this.isDragging = false;
+                this.dragDirection = null;
+                this.dragOffset = 0;
+
+                // transformを維持したまま移動を実行
+                this.move(direction);
             } else {
                 // 閾値未満なら元に戻す
                 this.cancelDrag();
+                this.isDragging = false;
+                this.dragDirection = null;
+                this.dragOffset = 0;
             }
 
-            this.isDragging = false;
-            this.dragDirection = null;
-            this.dragOffset = 0;
             e.preventDefault();
         }, { passive: false });
 
@@ -297,17 +303,23 @@ class ThreesGame {
 
             // 閾値を超えていたら移動を確定
             if (Math.abs(this.dragOffset) >= this.commitThreshold) {
-                // 移動確定時はまずtransformをクリア
-                this.clearDragTransforms();
-                this.move(this.dragDirection);
+                const direction = this.dragDirection;
+
+                // ドラッグ状態をクリア
+                this.isDragging = false;
+                this.dragDirection = null;
+                this.dragOffset = 0;
+
+                // transformを維持したまま移動を実行
+                this.move(direction);
             } else {
                 // 閾値未満なら元に戻す
                 this.cancelDrag();
+                this.isDragging = false;
+                this.dragDirection = null;
+                this.dragOffset = 0;
             }
 
-            this.isDragging = false;
-            this.dragDirection = null;
-            this.dragOffset = 0;
             e.preventDefault();
         });
 
@@ -1702,70 +1714,36 @@ class ThreesGame {
         const cellSizeInPixels = this.gameBoard.offsetWidth / this.gridSize;
         const offsetPercent = (this.dragOffset / cellSizeInPixels) * cellSize;
 
-        // 移動可能なタイルのみを移動量に応じてシフト（GPU加速のためtransformを使用）
+        // 移動可能なタイルのみを移動量に応じてシフト（left/topを直接変更）
         Object.values(this.tiles).forEach(tile => {
             if (!tile.element) return;
 
             const baseLeft = tile.col * cellSize + gap;
             const baseTop = tile.row * cellSize + gap;
 
-            // 元の位置を設定（left/topは変えない）
-            tile.element.style.left = `${baseLeft}%`;
-            tile.element.style.top = `${baseTop}%`;
-
-            // 移動可能なタイルのみをtransformでシフト
+            // 移動可能なタイルのみをシフト
             if (movableTiles.has(tile.id)) {
                 if (this.dragDirection === 'left' || this.dragDirection === 'right') {
                     // 横方向の移動
-                    const translateX = (offsetPercent / cellSize) * 100; // パーセント値に変換
-                    tile.element.style.transform = `translate(${translateX}%, 0)`;
+                    tile.element.style.left = `${baseLeft + offsetPercent}%`;
+                    tile.element.style.top = `${baseTop}%`;
                 } else {
                     // 縦方向の移動
-                    const translateY = (offsetPercent / cellSize) * 100; // パーセント値に変換
-                    tile.element.style.transform = `translate(0, ${translateY}%)`;
+                    tile.element.style.left = `${baseLeft}%`;
+                    tile.element.style.top = `${baseTop + offsetPercent}%`;
                 }
                 // ドラッグ中はtransitionを無効化（即座に追従）
                 tile.element.style.transition = 'none';
                 // 移動中のタイルを最前面に表示
                 tile.element.style.zIndex = '100';
             } else {
-                // 移動できないタイルは変形なし
-                tile.element.style.transform = '';
+                // 移動できないタイルは元の位置
+                tile.element.style.left = `${baseLeft}%`;
+                tile.element.style.top = `${baseTop}%`;
                 tile.element.style.transition = 'none';
                 // z-indexをリセット
                 tile.element.style.zIndex = '';
             }
-        });
-    }
-
-    clearDragTransforms() {
-        // ドラッグ時のtransformを即座にクリア（transitionなし）
-        const cellSize = 100 / this.gridSize;
-        const gap = 0.8;
-
-        Object.values(this.tiles).forEach(tile => {
-            if (!tile.element) return;
-
-            // transitionを一時的に無効化
-            tile.element.style.transition = 'none';
-
-            // 現在のleft/top位置を再設定（transformの影響を受けない位置）
-            const baseLeft = tile.col * cellSize + gap;
-            const baseTop = tile.row * cellSize + gap;
-            tile.element.style.left = `${baseLeft}%`;
-            tile.element.style.top = `${baseTop}%`;
-
-            // transformをリセット
-            tile.element.style.transform = '';
-            // z-indexをリセット
-            tile.element.style.zIndex = '';
-
-            // 次のフレームでtransitionを再度有効化
-            requestAnimationFrame(() => {
-                if (tile.element) {
-                    tile.element.style.transition = '';
-                }
-            });
         });
     }
 
@@ -1785,8 +1763,6 @@ class ThreesGame {
             tile.element.style.transition = '';
             tile.element.style.left = `${baseLeft}%`;
             tile.element.style.top = `${baseTop}%`;
-            // transformをリセット
-            tile.element.style.transform = '';
             // z-indexをリセット
             tile.element.style.zIndex = '';
         });
@@ -1817,7 +1793,6 @@ class ThreesGame {
                 tile.element.style.top = `${top}%`;
                 tile.element.style.width = `${size}%`;
                 tile.element.style.height = `${size}%`;
-                tile.element.style.transform = ''; // transformをリセット
 
                 // 数字の桁数に応じてフォントサイズを調整
                 this.adjustFontSize(tile.element, tile.value);
@@ -1838,12 +1813,12 @@ class ThreesGame {
                 tile.element.style.top = `${top}%`;
                 tile.element.style.width = `${size}%`;
                 tile.element.style.height = `${size}%`;
-                // transformをリセット（ドラッグ時のtransformを削除）
-                tile.element.style.transform = '';
-                // transitionを再度有効化
-                tile.element.style.transition = '';
-                // z-indexをリセット
-                tile.element.style.zIndex = '';
+
+                // ドラッグ中でなければtransitionとz-indexをリセット
+                if (!this.isDragging) {
+                    tile.element.style.transition = '';
+                    tile.element.style.zIndex = '';
+                }
 
                 // 数字の桁数に応じてフォントサイズを調整
                 this.adjustFontSize(tile.element, tile.value);

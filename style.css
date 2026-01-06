@@ -192,13 +192,11 @@ body {
     font-size: 4em;
     font-weight: bold;
     border-radius: 8px;
-    transition: left 0.12s ease-out, top 0.12s ease-out, transform 0.15s ease;
+    transition: left 0.12s ease-out, top 0.12s ease-out;
     color: white;
     text-shadow: none;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-    will-change: transform, left, top;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
+    will-change: left, top;
 }
 
 /* タイルの色 - Threesオリジナル */
