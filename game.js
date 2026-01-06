@@ -18,6 +18,12 @@ class ThreesGame {
         this.touchStartY = 0;
         this.isMoving = false;
 
+        // ドラッグ追従システム
+        this.isDragging = false;
+        this.dragDirection = null;
+        this.dragOffset = 0;
+        this.commitThreshold = 0; // 動的に計算（初期化時に設定）
+
         // デッキシステム（12枚のカード）
         this.deck = [];
         this.initializeDeck();
@@ -115,6 +121,12 @@ class ThreesGame {
             cell.classList.add('cell');
             this.gameBoard.appendChild(cell);
         }
+
+        // コミット閾値を計算（セルサイズの80%）
+        setTimeout(() => {
+            const cellSize = this.gameBoard.offsetWidth / this.gridSize;
+            this.commitThreshold = cellSize * 0.8; // セルサイズの80%
+        }, 0);
     }
 
     setupEventListeners() {
@@ -142,40 +154,165 @@ class ThreesGame {
             }
         });
 
-        // タッチ操作
+        // タッチ操作（ドラッグ追従システム）
         this.gameBoard.addEventListener('touchstart', (e) => {
+            if (this.isMoving) return;
+
             this.touchStartX = e.touches[0].clientX;
             this.touchStartY = e.touches[0].clientY;
-            e.preventDefault(); // ページスクロールを防止
-        }, { passive: false }); // passiveをfalseに変更
+            this.isDragging = true;
+            this.dragDirection = null;
+            this.dragOffset = 0;
+            e.preventDefault();
+        }, { passive: false });
 
         this.gameBoard.addEventListener('touchmove', (e) => {
-            // タッチ移動中のスクロールを防止
+            if (!this.isDragging || this.isMoving) return;
+
+            const touchCurrentX = e.touches[0].clientX;
+            const touchCurrentY = e.touches[0].clientY;
+
+            const deltaX = touchCurrentX - this.touchStartX;
+            const deltaY = touchCurrentY - this.touchStartY;
+
+            // 方向を決定（まだ決まっていない場合）
+            if (!this.dragDirection) {
+                if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+                    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                        this.dragDirection = deltaX > 0 ? 'right' : 'left';
+                    } else {
+                        this.dragDirection = deltaY > 0 ? 'down' : 'up';
+                    }
+                }
+            }
+
+            // 方向に沿った移動量を計算（元の位置より逆には戻らない）
+            if (this.dragDirection) {
+                if (this.dragDirection === 'left') {
+                    // 左方向: 負の値、0より小さく、-commitThresholdより大きい
+                    this.dragOffset = Math.max(Math.min(deltaX, 0), -this.commitThreshold);
+                } else if (this.dragDirection === 'right') {
+                    // 右方向: 正の値、0より大きく、commitThresholdより小さい
+                    this.dragOffset = Math.min(Math.max(deltaX, 0), this.commitThreshold);
+                } else if (this.dragDirection === 'up') {
+                    // 上方向: 負の値、0より小さく、-commitThresholdより大きい
+                    this.dragOffset = Math.max(Math.min(deltaY, 0), -this.commitThreshold);
+                } else if (this.dragDirection === 'down') {
+                    // 下方向: 正の値、0より大きく、commitThresholdより小さい
+                    this.dragOffset = Math.min(Math.max(deltaY, 0), this.commitThreshold);
+                }
+
+                // タイルを移動量に応じて表示
+                this.renderDragPreview();
+            }
+
             e.preventDefault();
         }, { passive: false });
 
         this.gameBoard.addEventListener('touchend', (e) => {
+            if (!this.isDragging || this.isMoving) {
+                this.isDragging = false;
+                return;
+            }
+
+            // 閾値を超えていたら移動を確定
+            if (Math.abs(this.dragOffset) >= this.commitThreshold) {
+                this.move(this.dragDirection);
+            } else {
+                // 閾値未満なら元に戻す
+                this.cancelDrag();
+            }
+
+            this.isDragging = false;
+            this.dragDirection = null;
+            this.dragOffset = 0;
+            e.preventDefault();
+        }, { passive: false });
+
+        // マウス操作（ドラッグ追従システム）
+        this.gameBoard.addEventListener('mousedown', (e) => {
             if (this.isMoving) return;
 
-            const touchEndX = e.changedTouches[0].clientX;
-            const touchEndY = e.changedTouches[0].clientY;
+            this.touchStartX = e.clientX;
+            this.touchStartY = e.clientY;
+            this.isDragging = true;
+            this.dragDirection = null;
+            this.dragOffset = 0;
+            e.preventDefault();
+        });
 
-            const deltaX = touchEndX - this.touchStartX;
-            const deltaY = touchEndY - this.touchStartY;
+        this.gameBoard.addEventListener('mousemove', (e) => {
+            if (!this.isDragging || this.isMoving) return;
 
-            const minSwipeDistance = 30;
+            const mouseCurrentX = e.clientX;
+            const mouseCurrentY = e.clientY;
 
-            if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                if (Math.abs(deltaX) > minSwipeDistance) {
-                    this.move(deltaX > 0 ? 'right' : 'left');
-                }
-            } else {
-                if (Math.abs(deltaY) > minSwipeDistance) {
-                    this.move(deltaY > 0 ? 'down' : 'up');
+            const deltaX = mouseCurrentX - this.touchStartX;
+            const deltaY = mouseCurrentY - this.touchStartY;
+
+            // 方向を決定（まだ決まっていない場合）
+            if (!this.dragDirection) {
+                if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+                    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                        this.dragDirection = deltaX > 0 ? 'right' : 'left';
+                    } else {
+                        this.dragDirection = deltaY > 0 ? 'down' : 'up';
+                    }
                 }
             }
-            e.preventDefault(); // ページスクロールを防止
-        }, { passive: false }); // passiveをfalseに変更
+
+            // 方向に沿った移動量を計算（元の位置より逆には戻らない）
+            if (this.dragDirection) {
+                if (this.dragDirection === 'left') {
+                    // 左方向: 負の値、0より小さく、-commitThresholdより大きい
+                    this.dragOffset = Math.max(Math.min(deltaX, 0), -this.commitThreshold);
+                } else if (this.dragDirection === 'right') {
+                    // 右方向: 正の値、0より大きく、commitThresholdより小さい
+                    this.dragOffset = Math.min(Math.max(deltaX, 0), this.commitThreshold);
+                } else if (this.dragDirection === 'up') {
+                    // 上方向: 負の値、0より小さく、-commitThresholdより大きい
+                    this.dragOffset = Math.max(Math.min(deltaY, 0), -this.commitThreshold);
+                } else if (this.dragDirection === 'down') {
+                    // 下方向: 正の値、0より大きく、commitThresholdより小さい
+                    this.dragOffset = Math.min(Math.max(deltaY, 0), this.commitThreshold);
+                }
+
+                // タイルを移動量に応じて表示
+                this.renderDragPreview();
+            }
+
+            e.preventDefault();
+        });
+
+        this.gameBoard.addEventListener('mouseup', (e) => {
+            if (!this.isDragging || this.isMoving) {
+                this.isDragging = false;
+                return;
+            }
+
+            // 閾値を超えていたら移動を確定
+            if (Math.abs(this.dragOffset) >= this.commitThreshold) {
+                this.move(this.dragDirection);
+            } else {
+                // 閾値未満なら元に戻す
+                this.cancelDrag();
+            }
+
+            this.isDragging = false;
+            this.dragDirection = null;
+            this.dragOffset = 0;
+            e.preventDefault();
+        });
+
+        this.gameBoard.addEventListener('mouseleave', () => {
+            // マウスがボードから離れたらキャンセル
+            if (this.isDragging) {
+                this.cancelDrag();
+                this.isDragging = false;
+                this.dragDirection = null;
+                this.dragOffset = 0;
+            }
+        });
 
         // ボタン
         document.getElementById('new-game').addEventListener('click', () => {
@@ -1439,6 +1576,161 @@ class ThreesGame {
 
     updateBestScore() {
         this.bestElement.textContent = this.bestScore;
+    }
+
+    renderDragPreview() {
+        const cellSize = 100 / this.gridSize;
+        const gap = 0.8;
+
+        // ドラッグ中のオフセット（パーセント）を計算
+        const boardWidth = this.gameBoard.offsetWidth;
+        const boardHeight = this.gameBoard.offsetHeight;
+
+        let offsetPercent = 0;
+        if (this.dragDirection === 'left' || this.dragDirection === 'right') {
+            offsetPercent = (this.dragOffset / boardWidth) * 100;
+        } else {
+            offsetPercent = (this.dragOffset / boardHeight) * 100;
+        }
+
+        // 移動可能なタイルを判定
+        const grid = this.getGrid();
+        const movableTiles = new Set();
+
+        if (this.dragDirection === 'left') {
+            for (let row = 0; row < this.gridSize; row++) {
+                for (let col = 1; col < this.gridSize; col++) {
+                    const tileId = grid[row][col];
+                    if (tileId === null) continue;
+
+                    const tile = this.tiles[tileId];
+                    const targetCol = col - 1;
+
+                    if (grid[row][targetCol] === null) {
+                        movableTiles.add(tileId);
+                    } else {
+                        const targetTileId = grid[row][targetCol];
+                        const targetTile = this.tiles[targetTileId];
+                        if (this.canMerge(tile.value, targetTile.value)) {
+                            movableTiles.add(tileId);
+                        }
+                    }
+                }
+            }
+        } else if (this.dragDirection === 'right') {
+            for (let row = 0; row < this.gridSize; row++) {
+                for (let col = this.gridSize - 2; col >= 0; col--) {
+                    const tileId = grid[row][col];
+                    if (tileId === null) continue;
+
+                    const tile = this.tiles[tileId];
+                    const targetCol = col + 1;
+
+                    if (grid[row][targetCol] === null) {
+                        movableTiles.add(tileId);
+                    } else {
+                        const targetTileId = grid[row][targetCol];
+                        const targetTile = this.tiles[targetTileId];
+                        if (this.canMerge(tile.value, targetTile.value)) {
+                            movableTiles.add(tileId);
+                        }
+                    }
+                }
+            }
+        } else if (this.dragDirection === 'up') {
+            for (let col = 0; col < this.gridSize; col++) {
+                for (let row = 1; row < this.gridSize; row++) {
+                    const tileId = grid[row][col];
+                    if (tileId === null) continue;
+
+                    const tile = this.tiles[tileId];
+                    const targetRow = row - 1;
+
+                    if (grid[targetRow][col] === null) {
+                        movableTiles.add(tileId);
+                    } else {
+                        const targetTileId = grid[targetRow][col];
+                        const targetTile = this.tiles[targetTileId];
+                        if (this.canMerge(tile.value, targetTile.value)) {
+                            movableTiles.add(tileId);
+                        }
+                    }
+                }
+            }
+        } else if (this.dragDirection === 'down') {
+            for (let col = 0; col < this.gridSize; col++) {
+                for (let row = this.gridSize - 2; row >= 0; row--) {
+                    const tileId = grid[row][col];
+                    if (tileId === null) continue;
+
+                    const tile = this.tiles[tileId];
+                    const targetRow = row + 1;
+
+                    if (grid[targetRow][col] === null) {
+                        movableTiles.add(tileId);
+                    } else {
+                        const targetTileId = grid[targetRow][col];
+                        const targetTile = this.tiles[targetTileId];
+                        if (this.canMerge(tile.value, targetTile.value)) {
+                            movableTiles.add(tileId);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 移動可能なタイルのみを移動量に応じてシフト
+        Object.values(this.tiles).forEach(tile => {
+            if (!tile.element) return;
+
+            const baseLeft = tile.col * cellSize + gap;
+            const baseTop = tile.row * cellSize + gap;
+
+            // 移動可能なタイルのみをシフト
+            if (movableTiles.has(tile.id)) {
+                if (this.dragDirection === 'left' || this.dragDirection === 'right') {
+                    tile.element.style.left = `${baseLeft + offsetPercent}%`;
+                    tile.element.style.top = `${baseTop}%`;
+                } else {
+                    tile.element.style.left = `${baseLeft}%`;
+                    tile.element.style.top = `${baseTop + offsetPercent}%`;
+                }
+                // ドラッグ中はtransitionを無効化（即座に追従）
+                tile.element.style.transition = 'none';
+                // 移動中のタイルを最前面に表示
+                tile.element.style.zIndex = '100';
+            } else {
+                // 移動できないタイルは元の位置
+                tile.element.style.left = `${baseLeft}%`;
+                tile.element.style.top = `${baseTop}%`;
+                tile.element.style.transition = 'none';
+                // z-indexをリセット
+                tile.element.style.zIndex = '';
+            }
+        });
+    }
+
+    cancelDrag() {
+        // 元の位置に戻す（transitionを有効化してスムーズに）
+        const cellSize = 100 / this.gridSize;
+        const gap = 0.8;
+
+        Object.values(this.tiles).forEach(tile => {
+            if (!tile.element) return;
+
+            // 元の位置を計算
+            const baseLeft = tile.col * cellSize + gap;
+            const baseTop = tile.row * cellSize + gap;
+
+            // transitionを再度有効化してスムーズに戻す
+            tile.element.style.transition = '';
+            tile.element.style.left = `${baseLeft}%`;
+            tile.element.style.top = `${baseTop}%`;
+            // z-indexをリセット
+            tile.element.style.zIndex = '';
+        });
+
+        // render()を呼ばない（不要なアニメーション再生を防ぐ）
     }
 
     render() {
