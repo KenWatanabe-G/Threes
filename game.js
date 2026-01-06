@@ -1408,11 +1408,15 @@ class ThreesGame {
                 // 数字の桁数に応じてフォントサイズを調整
                 this.adjustFontSize(tile.element, tile.value);
 
-                // 削除モード用のクリックイベント
-                tile.element.addEventListener('click', (e) => {
+                // 削除モード用のイベント（モバイル対応）
+                const deleteTileHandler = (e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     this.deleteTile(tile.id);
-                });
+                };
+
+                tile.element.addEventListener('click', deleteTileHandler);
+                tile.element.addEventListener('touchend', deleteTileHandler);
 
                 if (tile.isNew) {
                     tile.element.classList.add('tile-new');
