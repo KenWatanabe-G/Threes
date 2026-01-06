@@ -172,7 +172,7 @@ class ThreesGame {
             this.isDragging = true;
             this.dragDirection = null;
             this.dragOffset = 0;
-            this.movableTilesCache = null; // キャッシュをクリア
+            this.movableTilesCache = null;
             e.preventDefault();
         }, { passive: false });
 
@@ -196,23 +196,18 @@ class ThreesGame {
                 }
             }
 
-            // 方向に沿った移動量を計算（元の位置より逆には戻らない）
+            // 方向に沿った移動量を計算
             if (this.dragDirection) {
                 if (this.dragDirection === 'left') {
-                    // 左方向: 負の値、0より小さく、-commitThresholdより大きい
                     this.dragOffset = Math.max(Math.min(deltaX, 0), -this.commitThreshold);
                 } else if (this.dragDirection === 'right') {
-                    // 右方向: 正の値、0より大きく、commitThresholdより小さい
                     this.dragOffset = Math.min(Math.max(deltaX, 0), this.commitThreshold);
                 } else if (this.dragDirection === 'up') {
-                    // 上方向: 負の値、0より小さく、-commitThresholdより大きい
                     this.dragOffset = Math.max(Math.min(deltaY, 0), -this.commitThreshold);
                 } else if (this.dragDirection === 'down') {
-                    // 下方向: 正の値、0より大きく、commitThresholdより小さい
                     this.dragOffset = Math.min(Math.max(deltaY, 0), this.commitThreshold);
                 }
 
-                // タイルを移動量に応じて表示
                 this.renderDragPreview();
             }
 
@@ -220,9 +215,7 @@ class ThreesGame {
         }, { passive: false });
 
         this.gameBoard.addEventListener('touchend', (e) => {
-            if (!this.isDragging) {
-                return;
-            }
+            if (!this.isDragging) return;
 
             // 移動中の場合はキャンセル
             if (this.isMoving) {
@@ -256,6 +249,17 @@ class ThreesGame {
             }
 
             e.preventDefault();
+        }, { passive: false });
+
+        // touchcancel イベント（OSによるジェスチャー横取り対策）
+        this.gameBoard.addEventListener('touchcancel', () => {
+            if (this.isDragging) {
+                this.cancelDrag();
+                this.isDragging = false;
+                this.dragDirection = null;
+                this.dragOffset = 0;
+                this.movableTilesCache = null;
+            }
         }, { passive: false });
 
         // マウス操作（ドラッグ追従システム）
@@ -1438,7 +1442,6 @@ class ThreesGame {
     }
 
     cancelDrag() {
-        // 元の位置に戻す（transitionを有効化してスムーズに）
         const cellSize = 100 / this.gridSize;
         const gap = 0.8;
 
@@ -1457,10 +1460,7 @@ class ThreesGame {
             tile.element.style.zIndex = '';
         });
 
-        // キャッシュをクリア
         this.movableTilesCache = null;
-
-        // render()を呼ばない（不要なアニメーション再生を防ぐ）
     }
 
     render() {
@@ -1491,14 +1491,17 @@ class ThreesGame {
                 this.adjustFontSize(tile.element, tile.value);
 
                 // 削除モード用のイベント（モバイル対応）
-                const deleteTileHandler = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.deleteTile(tile.id);
-                };
+                // 削除モードの時だけクリック可能にする
+                if (this.deleteMode) {
+                    const deleteTileHandler = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.deleteTile(tile.id);
+                    };
 
-                tile.element.addEventListener('click', deleteTileHandler);
-                tile.element.addEventListener('touchend', deleteTileHandler);
+                    tile.element.addEventListener('click', deleteTileHandler, { once: true });
+                    tile.element.addEventListener('touchend', deleteTileHandler, { once: true });
+                }
 
                 if (tile.isNew) {
                     tile.element.classList.add('tile-new');
