@@ -219,6 +219,8 @@ class ThreesGame {
 
             // 閾値を超えていたら移動を確定
             if (Math.abs(this.dragOffset) >= this.commitThreshold) {
+                // 移動確定時はまずtransformをクリア
+                this.clearDragTransforms();
                 this.move(this.dragDirection);
             } else {
                 // 閾値未満なら元に戻す
@@ -295,6 +297,8 @@ class ThreesGame {
 
             // 閾値を超えていたら移動を確定
             if (Math.abs(this.dragOffset) >= this.commitThreshold) {
+                // 移動確定時はまずtransformをクリア
+                this.clearDragTransforms();
                 this.move(this.dragDirection);
             } else {
                 // 閾値未満なら元に戻す
@@ -1731,6 +1735,37 @@ class ThreesGame {
                 // z-indexをリセット
                 tile.element.style.zIndex = '';
             }
+        });
+    }
+
+    clearDragTransforms() {
+        // ドラッグ時のtransformを即座にクリア（transitionなし）
+        const cellSize = 100 / this.gridSize;
+        const gap = 0.8;
+
+        Object.values(this.tiles).forEach(tile => {
+            if (!tile.element) return;
+
+            // transitionを一時的に無効化
+            tile.element.style.transition = 'none';
+
+            // 現在のleft/top位置を再設定（transformの影響を受けない位置）
+            const baseLeft = tile.col * cellSize + gap;
+            const baseTop = tile.row * cellSize + gap;
+            tile.element.style.left = `${baseLeft}%`;
+            tile.element.style.top = `${baseTop}%`;
+
+            // transformをリセット
+            tile.element.style.transform = '';
+            // z-indexをリセット
+            tile.element.style.zIndex = '';
+
+            // 次のフレームでtransitionを再度有効化
+            requestAnimationFrame(() => {
+                if (tile.element) {
+                    tile.element.style.transition = '';
+                }
+            });
         });
     }
 
