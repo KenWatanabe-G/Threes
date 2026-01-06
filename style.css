@@ -33,9 +33,16 @@ body {
 
 .header h1 {
     font-size: 3em;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     font-weight: bold;
     text-shadow: none;
+}
+
+.game-description {
+    font-size: 0.9em;
+    color: #776e65;
+    margin: 0 0 15px 0;
+    text-align: center;
 }
 
 .score-container {
