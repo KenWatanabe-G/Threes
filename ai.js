@@ -675,15 +675,15 @@ class ThreesAI {
         });
 
         if (maxTilePos) {
-            const targetCornerRow = 0;  // 左上コーナー
-            const targetCornerCol = 0;
+            const targetCornerRow = 3;  // 右下コーナー
+            const targetCornerCol = 3;
 
-            // コーナー判定: (0,0)に最大タイルがある場合
+            // コーナー判定: (3,3)に最大タイルがある場合
             if (maxTilePos.row === targetCornerRow && maxTilePos.col === targetCornerCol) {
                 // 巨大なボーナス（最大値 × 1000）
                 cornerIntegrityScore += maxTileValue * 1000;
             }
-            // エッジ判定: 壁際（行0 または 列0）にある場合
+            // エッジ判定: 壁際（行3 または 列3）にある場合
             else if (maxTilePos.row === targetCornerRow || maxTilePos.col === targetCornerCol) {
                 // 中程度のボーナス（リカバリー可能）
                 cornerIntegrityScore += maxTileValue * 300;
@@ -696,12 +696,12 @@ class ThreesAI {
         }
 
         // F. 重み付け勾配マップ (Gradient Map / Weighted Matrix)
-        // 左上をターゲットとする場合のマップ
+        // 右下をターゲットとする場合のマップ
         const weightMap = [
-            [4096, 1024, 256, 64],
-            [16, 32, 64, 128],
-            [8, 4, 2, 1],
-            [0, 0, 0, 0]
+            [0, 0, 0, 0],
+            [1, 2, 4, 8],
+            [64, 128, 256, 1024],
+            [128, 256, 1024, 4096]
         ];
 
         let weightedPositionScore = 0;
@@ -855,8 +855,8 @@ class ThreesAI {
         });
 
         if (maxTilePos) {
-            const targetCornerRow = 0;
-            const targetCornerCol = 0;
+            const targetCornerRow = 3;  // 右下コーナー
+            const targetCornerCol = 3;
 
             if (maxTilePos.row === targetCornerRow && maxTilePos.col === targetCornerCol) {
                 cornerIntegrityScore += maxTileValue * 1000;
@@ -867,12 +867,12 @@ class ThreesAI {
             }
         }
 
-        // F. 重み付け勾配マップ
+        // F. 重み付け勾配マップ（右下を最高値に）
         const weightMap = [
-            [4096, 1024, 256, 64],
-            [16, 32, 64, 128],
-            [8, 4, 2, 1],
-            [0, 0, 0, 0]
+            [0, 0, 0, 0],
+            [1, 2, 4, 8],
+            [64, 128, 256, 1024],
+            [128, 256, 1024, 4096]
         ];
 
         let weightedPositionScore = 0;
