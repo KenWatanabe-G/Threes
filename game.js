@@ -1180,82 +1180,134 @@ class ThreesGame {
             const movableTiles = new Set();
 
             if (this.dragDirection === 'left') {
+                // 左方向：左から右へ処理して、連鎖的に移動可能なタイルを検出
                 for (let row = 0; row < this.gridSize; row++) {
-                    for (let col = 1; col < this.gridSize; col++) {
+                    for (let col = 0; col < this.gridSize; col++) {
                         const tileId = grid[row][col];
                         if (tileId === null) continue;
 
                         const tile = this.tiles[tileId];
-                        const targetCol = col - 1;
+                        let canMove = false;
 
-                        if (grid[row][targetCol] === null) {
-                            movableTiles.add(tileId);
-                        } else {
-                            const targetTileId = grid[row][targetCol];
-                            const targetTile = this.tiles[targetTileId];
-                            if (this.canMerge(tile.value, targetTile.value)) {
-                                movableTiles.add(tileId);
+                        // 左隣（移動先）をチェック
+                        if (col > 0) {
+                            const leftTileId = grid[row][col - 1];
+                            if (leftTileId === null) {
+                                // 左が空きマス
+                                canMove = true;
+                            } else {
+                                const leftTile = this.tiles[leftTileId];
+                                if (this.canMerge(tile.value, leftTile.value)) {
+                                    // 左とマージ可能
+                                    canMove = true;
+                                } else if (movableTiles.has(leftTileId)) {
+                                    // 左のタイルが移動可能（空きができる）
+                                    canMove = true;
+                                }
                             }
+                        }
+
+                        if (canMove) {
+                            movableTiles.add(tileId);
                         }
                     }
                 }
             } else if (this.dragDirection === 'right') {
+                // 右方向：右から左へ処理して、連鎖的に移動可能なタイルを検出
                 for (let row = 0; row < this.gridSize; row++) {
-                    for (let col = this.gridSize - 2; col >= 0; col--) {
+                    for (let col = this.gridSize - 1; col >= 0; col--) {
                         const tileId = grid[row][col];
                         if (tileId === null) continue;
 
                         const tile = this.tiles[tileId];
-                        const targetCol = col + 1;
+                        let canMove = false;
 
-                        if (grid[row][targetCol] === null) {
-                            movableTiles.add(tileId);
-                        } else {
-                            const targetTileId = grid[row][targetCol];
-                            const targetTile = this.tiles[targetTileId];
-                            if (this.canMerge(tile.value, targetTile.value)) {
-                                movableTiles.add(tileId);
+                        // 右隣（移動先）をチェック
+                        if (col < this.gridSize - 1) {
+                            const rightTileId = grid[row][col + 1];
+                            if (rightTileId === null) {
+                                // 右が空きマス
+                                canMove = true;
+                            } else {
+                                const rightTile = this.tiles[rightTileId];
+                                if (this.canMerge(tile.value, rightTile.value)) {
+                                    // 右とマージ可能
+                                    canMove = true;
+                                } else if (movableTiles.has(rightTileId)) {
+                                    // 右のタイルが移動可能（空きができる）
+                                    canMove = true;
+                                }
                             }
+                        }
+
+                        if (canMove) {
+                            movableTiles.add(tileId);
                         }
                     }
                 }
             } else if (this.dragDirection === 'up') {
+                // 上方向：上から下へ処理して、連鎖的に移動可能なタイルを検出
                 for (let col = 0; col < this.gridSize; col++) {
-                    for (let row = 1; row < this.gridSize; row++) {
+                    for (let row = 0; row < this.gridSize; row++) {
                         const tileId = grid[row][col];
                         if (tileId === null) continue;
 
                         const tile = this.tiles[tileId];
-                        const targetRow = row - 1;
+                        let canMove = false;
 
-                        if (grid[targetRow][col] === null) {
-                            movableTiles.add(tileId);
-                        } else {
-                            const targetTileId = grid[targetRow][col];
-                            const targetTile = this.tiles[targetTileId];
-                            if (this.canMerge(tile.value, targetTile.value)) {
-                                movableTiles.add(tileId);
+                        // 上隣（移動先）をチェック
+                        if (row > 0) {
+                            const upTileId = grid[row - 1][col];
+                            if (upTileId === null) {
+                                // 上が空きマス
+                                canMove = true;
+                            } else {
+                                const upTile = this.tiles[upTileId];
+                                if (this.canMerge(tile.value, upTile.value)) {
+                                    // 上とマージ可能
+                                    canMove = true;
+                                } else if (movableTiles.has(upTileId)) {
+                                    // 上のタイルが移動可能（空きができる）
+                                    canMove = true;
+                                }
                             }
+                        }
+
+                        if (canMove) {
+                            movableTiles.add(tileId);
                         }
                     }
                 }
             } else if (this.dragDirection === 'down') {
+                // 下方向：下から上へ処理して、連鎖的に移動可能なタイルを検出
                 for (let col = 0; col < this.gridSize; col++) {
-                    for (let row = this.gridSize - 2; row >= 0; row--) {
+                    for (let row = this.gridSize - 1; row >= 0; row--) {
                         const tileId = grid[row][col];
                         if (tileId === null) continue;
 
                         const tile = this.tiles[tileId];
-                        const targetRow = row + 1;
+                        let canMove = false;
 
-                        if (grid[targetRow][col] === null) {
-                            movableTiles.add(tileId);
-                        } else {
-                            const targetTileId = grid[targetRow][col];
-                            const targetTile = this.tiles[targetTileId];
-                            if (this.canMerge(tile.value, targetTile.value)) {
-                                movableTiles.add(tileId);
+                        // 下隣（移動先）をチェック
+                        if (row < this.gridSize - 1) {
+                            const downTileId = grid[row + 1][col];
+                            if (downTileId === null) {
+                                // 下が空きマス
+                                canMove = true;
+                            } else {
+                                const downTile = this.tiles[downTileId];
+                                if (this.canMerge(tile.value, downTile.value)) {
+                                    // 下とマージ可能
+                                    canMove = true;
+                                } else if (movableTiles.has(downTileId)) {
+                                    // 下のタイルが移動可能（空きができる）
+                                    canMove = true;
+                                }
                             }
+                        }
+
+                        if (canMove) {
+                            movableTiles.add(tileId);
                         }
                     }
                 }
