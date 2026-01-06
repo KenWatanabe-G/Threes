@@ -107,23 +107,43 @@ body {
 
 .button-group {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     justify-content: center;
     flex-wrap: wrap;
 }
 
-.new-game-button,
-.undo-button {
+.new-game-button {
     background: #ff6b6b;
     color: white;
     border: none;
-    padding: 10px 20px;
+    padding: 8px 16px;
     border-radius: 8px;
-    font-size: 0.9em;
+    font-size: 0.85em;
     cursor: pointer;
     font-weight: bold;
     transition: all 0.3s ease;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.undo-button,
+.ai-toggle-button,
+.delete-mode-button,
+.ai-debug-button {
+    background: #4caf50;
+    color: white;
+    border: none;
+    padding: 8px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
 .undo-button {
@@ -136,30 +156,12 @@ body {
     opacity: 0.6;
 }
 
-.ai-toggle-button,
-.delete-mode-button,
-.ai-debug-button {
-    background: #4caf50;
-    color: white;
-    border: none;
-    padding: 10px;
-    border-radius: 50%;
-    cursor: pointer;
-    font-weight: bold;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-    width: 50px;
-    height: 50px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
+.undo-button svg,
 .ai-toggle-button svg,
 .delete-mode-button svg,
 .ai-debug-button svg {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
 }
 
 .ai-debug-button {
@@ -225,6 +227,7 @@ body {
 }
 
 .new-game-button:hover,
+.undo-button:hover:not(:disabled),
 .ai-toggle-button:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
@@ -232,6 +235,10 @@ body {
 
 .new-game-button:hover {
     background: #ff5252;
+}
+
+.undo-button:hover:not(:disabled) {
+    background: #2980b9;
 }
 
 .ai-toggle-button:hover {
