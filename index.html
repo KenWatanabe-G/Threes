@@ -28,14 +28,32 @@
 
         <div class="game-info">
             <p>1と2を組み合わせて3を作り、3以降は同じ数字同士を組み合わせます</p>
-            <div class="next-tile-preview">
-                <span class="next-label">次のタイル:</span>
-                <div id="next-tile" class="next-tile-display"></div>
-            </div>
             <div class="button-group">
                 <button id="new-game" class="new-game-button">New Game</button>
                 <button id="undo-button" class="undo-button" disabled>Undo</button>
-                <button id="ai-toggle" class="ai-toggle-button" title="AI自動操作">🤖</button>
+                <button id="delete-mode-button" class="delete-mode-button" title="マス削除モード">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                        <path d="M3 6h18v2H3V6zm2 3h2l1 11h8l1-11h2l-1.5 13H5.5L4 9zm7-5c1.1 0 2 .9 2 2h4v2H6V6h4c0-1.1.9-2 2-2zm0 2c-.6 0-1-.4-1-1h2c0 .6-.4 1-1 1z"/>
+                        <rect x="10" y="10" width="4" height="8" rx="1"/>
+                    </svg>
+                </button>
+                <button id="ai-toggle" class="ai-toggle-button" title="AI自動操作">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                        <rect x="7" y="3" width="10" height="14" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                        <circle cx="12" cy="7" r="1.5"/>
+                        <circle cx="9" cy="11" r="1"/>
+                        <circle cx="15" cy="11" r="1"/>
+                        <path d="M9 14h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        <rect x="9" y="18" width="2" height="3"/>
+                        <rect x="13" y="18" width="2" height="3"/>
+                        <circle cx="6" cy="10" r="1.5"/>
+                        <circle cx="18" cy="10" r="1.5"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="next-tile-preview">
+                <span class="next-label">次のタイル:</span>
+                <div id="next-tile" class="next-tile-display"></div>
             </div>
         </div>
 

@@ -133,13 +133,13 @@ body {
     opacity: 0.6;
 }
 
-.ai-toggle-button {
+.ai-toggle-button,
+.delete-mode-button {
     background: #4caf50;
     color: white;
     border: none;
-    padding: 12px;
+    padding: 10px;
     border-radius: 50%;
-    font-size: 1.8em;
     cursor: pointer;
     font-weight: bold;
     transition: all 0.3s ease;
@@ -149,6 +149,21 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.ai-toggle-button svg,
+.delete-mode-button svg {
+    width: 28px;
+    height: 28px;
+}
+
+.delete-mode-button {
+    background: #e74c3c;
+}
+
+.delete-mode-button.active {
+    background: #c0392b;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .ai-toggle-button.active {
@@ -221,6 +236,16 @@ body {
     text-shadow: none;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
     will-change: left, top;
+}
+
+.delete-mode .tile {
+    cursor: pointer;
+}
+
+.delete-mode .tile:hover {
+    opacity: 0.7;
+    transform: scale(0.95);
+    transition: opacity 0.2s, transform 0.2s;
 }
 
 /* タイルの色 - Threesオリジナル */

@@ -45,6 +45,9 @@ class ThreesGame {
         this.history = []; // ゲーム状態のスナップショット
         this.maxHistorySize = 10; // 最大10手まで戻せる
 
+        // 削除モード
+        this.deleteMode = false;
+
         this.init();
     }
 
@@ -349,6 +352,11 @@ class ThreesGame {
         // Undoボタン
         document.getElementById('undo-button').addEventListener('click', () => {
             this.undo();
+        });
+
+        // 削除モードボタン
+        document.getElementById('delete-mode-button').addEventListener('click', () => {
+            this.toggleDeleteMode();
         });
 
         // AI自動操作ボタン
@@ -1702,6 +1710,44 @@ class ThreesGame {
         }
     }
 
+    toggleDeleteMode() {
+        this.deleteMode = !this.deleteMode;
+        const button = document.getElementById('delete-mode-button');
+
+        if (this.deleteMode) {
+            button.classList.add('active');
+            this.gameBoard.classList.add('delete-mode');
+        } else {
+            button.classList.remove('active');
+            this.gameBoard.classList.remove('delete-mode');
+        }
+    }
+
+    deleteTile(tileId) {
+        if (!this.deleteMode || this.isMoving) return;
+
+        // 削除前に状態を保存
+        this.saveState();
+
+        const tile = this.tiles[tileId];
+        if (!tile) return;
+
+        // タイル要素を削除
+        if (tile.element) {
+            tile.element.remove();
+        }
+
+        // タイルデータから削除
+        delete this.tiles[tileId];
+
+        // 削除モードを自動的にオフ
+        this.toggleDeleteMode();
+
+        // UIを更新
+        this.render();
+        this.updateUndoButton();
+    }
+
     adjustFontSize(element, value) {
         // 数字の桁数に応じてフォントサイズを調整
         const digits = value.toString().length;
@@ -1901,6 +1947,12 @@ class ThreesGame {
 
                 // 数字の桁数に応じてフォントサイズを調整
                 this.adjustFontSize(tile.element, tile.value);
+
+                // 削除モード用のクリックイベント
+                tile.element.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.deleteTile(tile.id);
+                });
 
                 if (tile.isNew) {
                     tile.element.classList.add('tile-new');
