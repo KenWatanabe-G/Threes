@@ -41,6 +41,10 @@ class ThreesGame {
         // トランスポジションテーブル
         this.transpositionTable = new Map();
 
+        // Undo用の履歴
+        this.history = []; // ゲーム状態のスナップショット
+        this.maxHistorySize = 10; // 最大10手まで戻せる
+
         this.init();
     }
 
@@ -342,6 +346,11 @@ class ThreesGame {
             this.startGame();
         });
 
+        // Undoボタン
+        document.getElementById('undo-button').addEventListener('click', () => {
+            this.undo();
+        });
+
         // AI自動操作ボタン
         document.getElementById('ai-toggle').addEventListener('click', () => {
             this.toggleAI();
@@ -363,6 +372,9 @@ class ThreesGame {
             this.aiIndicatorElement.classList.add('hidden');
             this.stopAI();
         }
+
+        // Undoボタンの状態を更新
+        this.updateUndoButton();
     }
 
     startAI() {
@@ -1153,6 +1165,10 @@ class ThreesGame {
         this.updateScore();
         this.gameOverElement.classList.add('hidden');
 
+        // 履歴をクリア
+        this.history = [];
+        this.updateUndoButton();
+
         // デッキをリセット
         this.initializeDeck();
 
@@ -1248,6 +1264,10 @@ class ThreesGame {
         if (this.isMoving) return;
 
         const beforeMove = JSON.stringify(this.getGrid());
+
+        // 移動前に状態を保存（Undo用）
+        this.saveState();
+
         this.isMoving = true;
 
         // マージフラグをリセット
@@ -1290,9 +1310,13 @@ class ThreesGame {
                         this.endGame();
                     }
                     this.isMoving = false;
+                    // 移動完了後、Undoボタンの状態を更新
+                    this.updateUndoButton();
                 }, 20);
             }, 120);
         } else {
+            // 移動が起こらなかった場合は、保存した状態を削除
+            this.history.pop();
             this.isMoving = false;
         }
     }
@@ -1595,6 +1619,89 @@ class ThreesGame {
 
     updateBestScore() {
         this.bestElement.textContent = this.bestScore;
+    }
+
+    saveState() {
+        // 現在のゲーム状態をスナップショットとして保存
+        const state = {
+            tiles: JSON.parse(JSON.stringify(Object.values(this.tiles).map(t => ({
+                id: t.id,
+                value: t.value,
+                row: t.row,
+                col: t.col
+            })))),
+            nextTileId: this.nextTileId,
+            score: this.score,
+            nextTileValue: this.nextTileValue,
+            nextTileIsBonus: this.nextTileIsBonus,
+            deck: [...this.deck]
+        };
+
+        this.history.push(state);
+
+        // 履歴が最大サイズを超えたら古いものを削除
+        if (this.history.length > this.maxHistorySize) {
+            this.history.shift();
+        }
+    }
+
+    canUndo() {
+        return this.history.length > 0 && !this.aiMode && !this.isMoving;
+    }
+
+    undo() {
+        if (!this.canUndo()) return;
+
+        // 最後の状態を取得して削除
+        const state = this.history.pop();
+
+        // タイルを復元
+        // 既存のタイル要素を全て削除
+        Object.values(this.tiles).forEach(tile => {
+            if (tile.element) {
+                tile.element.remove();
+            }
+        });
+
+        // タイルデータを復元
+        this.tiles = {};
+        state.tiles.forEach(tileData => {
+            this.tiles[tileData.id] = {
+                id: tileData.id,
+                value: tileData.value,
+                row: tileData.row,
+                col: tileData.col,
+                element: null,
+                isNew: false,
+                merged: false,
+                merging: false
+            };
+        });
+
+        // その他の状態を復元
+        this.nextTileId = state.nextTileId;
+        this.score = state.score;
+        this.nextTileValue = state.nextTileValue;
+        this.nextTileIsBonus = state.nextTileIsBonus;
+        this.deck = [...state.deck];
+
+        // ゲームオーバー画面を非表示にする
+        this.gameOverElement.classList.add('hidden');
+
+        // UIを更新
+        this.updateScore();
+        this.updateNextTileDisplay();
+        this.render();
+
+        // Undoボタンの状態を更新
+        this.updateUndoButton();
+    }
+
+    updateUndoButton() {
+        const undoButton = document.getElementById('undo-button');
+        if (undoButton) {
+            undoButton.disabled = !this.canUndo();
+        }
     }
 
     adjustFontSize(element, value) {
