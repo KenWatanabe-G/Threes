@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Generate Icon</title>
+</head>
+<body>
+    <h1>iOS App Icon Generator</h1>
+    <p>Generated icons will be downloaded automatically.</p>
+    <canvas id="canvas" width="180" height="180" style="border:1px solid #ccc;"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // SVGを描画
+        const svg = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="180" height="180">
+                <rect width="100" height="100" rx="15" fill="#89CFF0"/>
+                <text x="50" y="75" font-family="Arial, sans-serif" font-size="70" font-weight="bold" fill="white" text-anchor="middle">3</text>
+            </svg>
+        `;
+
+        const img = new Image();
+        const blob = new Blob([svg], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(blob);
+
+        img.onload = function() {
+            ctx.drawImage(img, 0, 0, 180, 180);
+            URL.revokeObjectURL(url);
+
+            // PNGとしてダウンロード
+            canvas.toBlob(function(blob) {
+                const link = document.createElement('a');
+                link.download = 'apple-touch-icon.png';
+                link.href = URL.createObjectURL(blob);
+                link.click();
+            });
+        };
+
+        img.src = url;
+    </script>
+</body>
+</html>
