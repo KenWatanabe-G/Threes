@@ -46,6 +46,9 @@ class ThreesGame {
         // 削除モード
         this.deleteMode = false;
 
+        // AI分析パネル
+        this.debugPanelOpen = false;
+
         this.init();
     }
 
@@ -361,6 +364,49 @@ class ThreesGame {
         document.getElementById('ai-toggle').addEventListener('click', () => {
             this.toggleAI();
         });
+
+        // AI分析パネルボタン
+        document.getElementById('ai-debug-toggle').addEventListener('click', () => {
+            this.toggleDebugPanel();
+        });
+
+        document.getElementById('ai-debug-close').addEventListener('click', () => {
+            this.closeDebugPanel();
+        });
+
+        // 重みスライダー
+        ['w1', 'w2', 'w3', 'w4', 'w5'].forEach(weight => {
+            const slider = document.getElementById(`${weight}-slider`);
+            const valueDisplay = document.getElementById(`${weight}-value`);
+
+            slider.addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                valueDisplay.textContent = value;
+
+                // AIインスタンスの重みを更新
+                if (this.ai) {
+                    this.ai.updateWeights({ [weight]: value });
+                    // パネルが開いていればリアルタイム更新
+                    if (this.debugPanelOpen) {
+                        this.updateDebugPanel();
+                    }
+                }
+            });
+        });
+
+        // デフォルトに戻すボタン
+        document.getElementById('reset-weights').addEventListener('click', () => {
+            if (this.ai) {
+                this.ai.resetWeights();
+                this.loadWeightsToUI();
+                if (this.debugPanelOpen) {
+                    this.updateDebugPanel();
+                }
+            }
+        });
+
+        // ゲーム状態が変わったらパネルを更新（移動後など）
+        // move()メソッド内で updateDebugPanel() を呼ぶ
     }
 
     toggleAI() {
@@ -676,6 +722,10 @@ class ThreesGame {
                     this.isMoving = false;
                     // 移動完了後、Undoボタンの状態を更新
                     this.updateUndoButton();
+                    // AI分析パネルをリアルタイム更新
+                    if (this.debugPanelOpen) {
+                        this.updateDebugPanel();
+                    }
                 }, 20);
             }, 120);
         } else {
@@ -1394,6 +1444,128 @@ class ThreesGame {
             if (!this.tiles[tileId]) {
                 element.remove();
             }
+        });
+    }
+
+    // AI分析パネル関連のメソッド
+    toggleDebugPanel() {
+        this.debugPanelOpen = !this.debugPanelOpen;
+        const panel = document.getElementById('ai-debug-panel');
+        const button = document.getElementById('ai-debug-toggle');
+
+        if (this.debugPanelOpen) {
+            panel.classList.remove('hidden');
+            button.classList.add('active');
+
+            // AIインスタンスを作成（まだない場合）
+            if (!this.ai) {
+                this.ai = new ThreesAI(this);
+            }
+
+            // UIに重みを読み込む
+            this.loadWeightsToUI();
+
+            // パネルを更新
+            this.updateDebugPanel();
+        } else {
+            this.closeDebugPanel();
+        }
+    }
+
+    closeDebugPanel() {
+        this.debugPanelOpen = false;
+        const panel = document.getElementById('ai-debug-panel');
+        const button = document.getElementById('ai-debug-toggle');
+        panel.classList.add('hidden');
+        button.classList.remove('active');
+    }
+
+    loadWeightsToUI() {
+        if (!this.ai) return;
+
+        const weights = this.ai.weights;
+        ['w1', 'w2', 'w3', 'w4', 'w5'].forEach(weight => {
+            const slider = document.getElementById(`${weight}-slider`);
+            const valueDisplay = document.getElementById(`${weight}-value`);
+            slider.value = weights[weight];
+            valueDisplay.textContent = weights[weight];
+        });
+    }
+
+    updateDebugPanel() {
+        if (!this.debugPanelOpen || !this.ai) return;
+
+        // 全方向の評価を取得
+        const analysis = this.ai.analyzeAllDirections();
+
+        // 最適手を計算
+        let bestMove = null;
+        let bestScore = -Infinity;
+
+        const directions = ['up', 'down', 'left', 'right'];
+        directions.forEach(direction => {
+            if (analysis[direction] && analysis[direction].total > bestScore) {
+                bestScore = analysis[direction].total;
+                bestMove = direction;
+            }
+        });
+
+        // 最適手の表示
+        const directionMap = {
+            'up': '↑ 上',
+            'down': '↓ 下',
+            'left': '← 左',
+            'right': '→ 右'
+        };
+
+        document.getElementById('best-move-display').textContent =
+            bestMove ? directionMap[bestMove] : '移動不可';
+        document.getElementById('best-move-score').textContent =
+            bestScore > -Infinity ? Math.round(bestScore) : '-';
+
+        // テーブルを更新
+        this.updateScoresTable(analysis, bestMove);
+    }
+
+    updateScoresTable(analysis, bestMove) {
+        const tbody = document.getElementById('scores-table-body');
+        tbody.innerHTML = '';
+
+        const directionMap = {
+            'up': '↑ 上',
+            'down': '↓ 下',
+            'left': '← 左',
+            'right': '→ 右'
+        };
+
+        const directions = ['up', 'down', 'left', 'right'];
+        directions.forEach(direction => {
+            const row = document.createElement('tr');
+            const data = analysis[direction];
+
+            if (direction === bestMove) {
+                row.classList.add('best-row');
+            }
+
+            if (!data) {
+                row.innerHTML = `
+                    <td><span class="direction-arrow">${directionMap[direction]}</span></td>
+                    <td colspan="7" style="color: #999;">移動不可</td>
+                `;
+            } else {
+                row.innerHTML = `
+                    <td><span class="direction-arrow">${directionMap[direction]}</span></td>
+                    <td>${Math.round(data.total)}</td>
+                    <td>${Math.round(data.openness)}</td>
+                    <td>${Math.round(data.monotonicity)}</td>
+                    <td>${Math.round(data.smoothness)}</td>
+                    <td>${Math.round(data.adjacency)}</td>
+                    <td>${Math.round(data.cornerIntegrity)}</td>
+                    <td>${Math.round(data.weightedPosition)}</td>
+                `;
+            }
+
+            tbody.appendChild(row);
         });
     }
 }

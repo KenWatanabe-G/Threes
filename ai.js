@@ -2,6 +2,49 @@ class ThreesAI {
     constructor(game) {
         this.game = game;
         this.transpositionTable = new Map();
+
+        // 評価関数の重み（調整可能）
+        this.weights = this.loadWeights();
+    }
+
+    loadWeights() {
+        // localStorageから重みを読み込む
+        const saved = localStorage.getItem('threes-ai-weights');
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch (e) {
+                console.error('Failed to load weights:', e);
+            }
+        }
+        // デフォルト値
+        return {
+            w1: 1000,  // Openness
+            w2: 800,   // Monotonicity
+            w3: 1500,  // Smoothness
+            w4: 600,   // Adjacency
+            w5: 3000   // Corner Integrity
+        };
+    }
+
+    saveWeights() {
+        localStorage.setItem('threes-ai-weights', JSON.stringify(this.weights));
+    }
+
+    updateWeights(weights) {
+        this.weights = { ...this.weights, ...weights };
+        this.saveWeights();
+    }
+
+    resetWeights() {
+        this.weights = {
+            w1: 1000,
+            w2: 800,
+            w3: 1500,
+            w4: 600,
+            w5: 3000
+        };
+        this.saveWeights();
     }
 
     // 最適な手を取得
@@ -487,12 +530,12 @@ class ThreesAI {
             tilesMap[t.id] = t;
         });
 
-        // 重み
-        const w1 = 1000;  // Openness (空きマス)
-        const w2 = 800;   // Monotonicity (蛇行配置)
-        const w3 = 1500;   // Smoothness (滑らかさ)
-        const w4 = 600;   // Adjacency (1-2ペアリング)
-        const w5 = 3000;  // Corner Integrity (コーナー固定) - 最重要
+        // 重み（調整可能な値を使用）
+        const w1 = this.weights.w1;  // Openness (空きマス)
+        const w2 = this.weights.w2;  // Monotonicity (蛇行配置)
+        const w3 = this.weights.w3;  // Smoothness (滑らかさ)
+        const w4 = this.weights.w4;  // Adjacency (1-2ペアリング)
+        const w5 = this.weights.w5;  // Corner Integrity (コーナー固定) - 最重要
 
         // A. 空きマスの数 (Openness)
         let emptyCells = 0;
@@ -682,6 +725,217 @@ class ThreesAI {
             weightedPositionScore;  // Gradient Mapは重みなしで直接加算
 
         return finalScore;
+    }
+
+    // 詳細な評価スコアを返す（デバッグ用）
+    evaluateBoardDetailed(grid, tiles) {
+        const tilesMap = {};
+        tiles.forEach(t => {
+            tilesMap[t.id] = t;
+        });
+
+        // A. 空きマスの数 (Openness)
+        let emptyCells = 0;
+        for (let row = 0; row < this.game.gridSize; row++) {
+            for (let col = 0; col < this.game.gridSize; col++) {
+                if (grid[row][col] === null) emptyCells++;
+            }
+        }
+        const opennessScore = Math.pow(emptyCells, 2);
+
+        // B. 単調性 (Monotonicity)
+        const snakePath = [];
+        for (let row = 0; row < this.game.gridSize; row++) {
+            if (row % 2 === 0) {
+                for (let col = 0; col < this.game.gridSize; col++) {
+                    const tileId = grid[row][col];
+                    snakePath.push(tileId !== null ? tilesMap[tileId].value : 0);
+                }
+            } else {
+                for (let col = this.game.gridSize - 1; col >= 0; col--) {
+                    const tileId = grid[row][col];
+                    snakePath.push(tileId !== null ? tilesMap[tileId].value : 0);
+                }
+            }
+        }
+
+        let monotonicityScore = 0;
+        for (let i = 0; i < snakePath.length - 1; i++) {
+            if (snakePath[i] >= snakePath[i + 1] && snakePath[i] > 0) {
+                monotonicityScore++;
+            }
+        }
+
+        // C. 滑らかさ (Smoothness)
+        let smoothnessScore = 0;
+        for (let row = 0; row < this.game.gridSize; row++) {
+            for (let col = 0; col < this.game.gridSize; col++) {
+                const tileId = grid[row][col];
+                if (tileId === null) continue;
+
+                const tile = tilesMap[tileId];
+                const logValue = tile.value > 0 ? Math.log2(tile.value) : 0;
+
+                if (col < this.game.gridSize - 1) {
+                    const rightId = grid[row][col + 1];
+                    if (rightId !== null) {
+                        const rightTile = tilesMap[rightId];
+                        const rightLogValue = rightTile.value > 0 ? Math.log2(rightTile.value) : 0;
+                        const diff = Math.abs(logValue - rightLogValue);
+                        smoothnessScore -= diff;
+                    }
+                }
+
+                if (row < this.game.gridSize - 1) {
+                    const downId = grid[row + 1][col];
+                    if (downId !== null) {
+                        const downTile = tilesMap[downId];
+                        const downLogValue = downTile.value > 0 ? Math.log2(downTile.value) : 0;
+                        const diff = Math.abs(logValue - downLogValue);
+                        smoothnessScore -= diff;
+                    }
+                }
+            }
+        }
+
+        // D. 1と2のペアリング (Adjacency)
+        let adjacencyScore = 0;
+        for (let row = 0; row < this.game.gridSize; row++) {
+            for (let col = 0; col < this.game.gridSize; col++) {
+                const tileId = grid[row][col];
+                if (tileId === null) continue;
+
+                const tile = tilesMap[tileId];
+
+                if (tile.value === 1 || tile.value === 2) {
+                    const neighbors = [];
+
+                    if (row > 0 && grid[row - 1][col] !== null) {
+                        neighbors.push(tilesMap[grid[row - 1][col]].value);
+                    }
+                    if (row < this.game.gridSize - 1 && grid[row + 1][col] !== null) {
+                        neighbors.push(tilesMap[grid[row + 1][col]].value);
+                    }
+                    if (col > 0 && grid[row][col - 1] !== null) {
+                        neighbors.push(tilesMap[grid[row][col - 1]].value);
+                    }
+                    if (col < this.game.gridSize - 1 && grid[row][col + 1] !== null) {
+                        neighbors.push(tilesMap[grid[row][col + 1]].value);
+                    }
+
+                    neighbors.forEach(neighborValue => {
+                        if (tile.value === 1 && neighborValue === 2) {
+                            adjacencyScore += 10;
+                        } else if (tile.value === 2 && neighborValue === 1) {
+                            adjacencyScore += 10;
+                        } else if (tile.value === 1 && neighborValue === 1) {
+                            adjacencyScore -= 5;
+                        } else if (tile.value === 2 && neighborValue === 2) {
+                            adjacencyScore -= 5;
+                        } else if (tile.value === 1 && neighborValue >= 3) {
+                            adjacencyScore -= 3;
+                        } else if (tile.value === 2 && neighborValue >= 3) {
+                            adjacencyScore -= 3;
+                        }
+                    });
+                }
+            }
+        }
+
+        // E. コーナー固定 (Corner Integrity)
+        let cornerIntegrityScore = 0;
+
+        let maxTileValue = 0;
+        let maxTilePos = null;
+        tiles.forEach(tile => {
+            if (tile.value > maxTileValue) {
+                maxTileValue = tile.value;
+                maxTilePos = { row: tile.row, col: tile.col };
+            }
+        });
+
+        if (maxTilePos) {
+            const targetCornerRow = 0;
+            const targetCornerCol = 0;
+
+            if (maxTilePos.row === targetCornerRow && maxTilePos.col === targetCornerCol) {
+                cornerIntegrityScore += maxTileValue * 1000;
+            } else if (maxTilePos.row === targetCornerRow || maxTilePos.col === targetCornerCol) {
+                cornerIntegrityScore += maxTileValue * 300;
+            } else {
+                cornerIntegrityScore -= maxTileValue * 500;
+            }
+        }
+
+        // F. 重み付け勾配マップ
+        const weightMap = [
+            [4096, 1024, 256, 64],
+            [16, 32, 64, 128],
+            [8, 4, 2, 1],
+            [0, 0, 0, 0]
+        ];
+
+        let weightedPositionScore = 0;
+        for (let row = 0; row < this.game.gridSize; row++) {
+            for (let col = 0; col < this.game.gridSize; col++) {
+                const tileId = grid[row][col];
+                if (tileId !== null) {
+                    const tile = tilesMap[tileId];
+                    weightedPositionScore += tile.value * weightMap[row][col];
+                }
+            }
+        }
+
+        // 重み適用後のスコア
+        const finalScore =
+            this.weights.w1 * opennessScore +
+            this.weights.w2 * monotonicityScore +
+            this.weights.w3 * smoothnessScore +
+            this.weights.w4 * adjacencyScore +
+            this.weights.w5 * cornerIntegrityScore +
+            weightedPositionScore;
+
+        return {
+            total: finalScore,
+            openness: this.weights.w1 * opennessScore,
+            monotonicity: this.weights.w2 * monotonicityScore,
+            smoothness: this.weights.w3 * smoothnessScore,
+            adjacency: this.weights.w4 * adjacencyScore,
+            cornerIntegrity: this.weights.w5 * cornerIntegrityScore,
+            weightedPosition: weightedPositionScore,
+            // 生のスコアも返す
+            raw: {
+                openness: opennessScore,
+                monotonicity: monotonicityScore,
+                smoothness: smoothnessScore,
+                adjacency: adjacencyScore,
+                cornerIntegrity: cornerIntegrityScore,
+                weightedPosition: weightedPositionScore
+            }
+        };
+    }
+
+    // 全方向の詳細評価を取得
+    analyzeAllDirections() {
+        const directions = ['up', 'down', 'left', 'right'];
+        const results = {};
+
+        directions.forEach(direction => {
+            if (!this.canMoveInDirection(direction)) {
+                results[direction] = null;
+                return;
+            }
+
+            const simResult = this.simulateMove(direction);
+            if (!simResult) {
+                results[direction] = null;
+                return;
+            }
+
+            results[direction] = this.evaluateBoardDetailed(simResult.grid, simResult.tiles);
+        });
+
+        return results;
     }
 
     canMoveInDirection(direction) {

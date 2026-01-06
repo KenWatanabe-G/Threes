@@ -50,6 +50,14 @@
                         <circle cx="18" cy="10" r="1.5"/>
                     </svg>
                 </button>
+                <button id="ai-debug-toggle" class="ai-debug-button" title="AI分析パネル">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                        <path d="M3 3h18v4H3V3zm0 6h18v12H3V9zm2 2v8h14v-8H5z"/>
+                        <rect x="7" y="12" width="3" height="1"/>
+                        <rect x="7" y="14" width="5" height="1"/>
+                        <rect x="7" y="16" width="4" height="1"/>
+                    </svg>
+                </button>
             </div>
             <div class="next-tile-preview">
                 <span class="next-label">次のタイル:</span>
@@ -73,6 +81,76 @@
 
         <div class="instructions">
             <p><strong>操作方法:</strong> 矢印キー ←↑→↓ またはスワイプでタイルを動かします</p>
+        </div>
+    </div>
+
+    <!-- AI分析パネル -->
+    <div id="ai-debug-panel" class="ai-debug-panel hidden">
+        <div class="ai-debug-content">
+            <div class="ai-debug-header">
+                <h2>AI分析パネル</h2>
+                <button id="ai-debug-close" class="close-button">×</button>
+            </div>
+
+            <div class="ai-debug-body">
+                <!-- 最適手の表示 -->
+                <div class="best-move-section">
+                    <h3>推奨手: <span id="best-move-display">-</span></h3>
+                    <p class="best-move-score">スコア: <span id="best-move-score">-</span></p>
+                </div>
+
+                <!-- 重み調整セクション -->
+                <div class="weights-section">
+                    <h3>評価重み調整</h3>
+                    <div class="weight-controls">
+                        <div class="weight-control">
+                            <label>Openness (空きマス): <span id="w1-value">1000</span></label>
+                            <input type="range" id="w1-slider" min="0" max="3000" step="100" value="1000">
+                        </div>
+                        <div class="weight-control">
+                            <label>Monotonicity (蛇行配置): <span id="w2-value">800</span></label>
+                            <input type="range" id="w2-slider" min="0" max="3000" step="100" value="800">
+                        </div>
+                        <div class="weight-control">
+                            <label>Smoothness (滑らかさ): <span id="w3-value">1500</span></label>
+                            <input type="range" id="w3-slider" min="0" max="3000" step="100" value="1500">
+                        </div>
+                        <div class="weight-control">
+                            <label>Adjacency (1-2ペア): <span id="w4-value">600</span></label>
+                            <input type="range" id="w4-slider" min="0" max="3000" step="100" value="600">
+                        </div>
+                        <div class="weight-control">
+                            <label>Corner Integrity (コーナー): <span id="w5-value">3000</span></label>
+                            <input type="range" id="w5-slider" min="0" max="5000" step="100" value="3000">
+                        </div>
+                        <button id="reset-weights" class="reset-button">デフォルトに戻す</button>
+                    </div>
+                </div>
+
+                <!-- 各方向の評価スコアテーブル -->
+                <div class="scores-section">
+                    <h3>各方向の評価スコア</h3>
+                    <div class="scores-table-container">
+                        <table class="scores-table">
+                            <thead>
+                                <tr>
+                                    <th>方向</th>
+                                    <th>総合</th>
+                                    <th>空きマス</th>
+                                    <th>蛇行</th>
+                                    <th>滑らか</th>
+                                    <th>1-2ペア</th>
+                                    <th>コーナー</th>
+                                    <th>位置</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scores-table-body">
+                                <!-- JavaScriptで動的に生成 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
