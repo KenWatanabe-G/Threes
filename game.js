@@ -1707,15 +1707,15 @@ class ThreesGame {
         const digits = value.toString().length;
 
         if (digits <= 2) {
-            element.style.fontSize = '4em'; // 1-99: 最大サイズ
+            element.style.fontSize = '3.5em'; // 1-99: 最大サイズ
         } else if (digits === 3) {
-            element.style.fontSize = '3.2em'; // 100-999
+            element.style.fontSize = '2.8em'; // 100-999
         } else if (digits === 4) {
-            element.style.fontSize = '2.6em'; // 1000-9999
+            element.style.fontSize = '2.3em'; // 1000-9999
         } else if (digits === 5) {
-            element.style.fontSize = '2.1em'; // 10000-99999
+            element.style.fontSize = '1.9em'; // 10000-99999
         } else {
-            element.style.fontSize = '1.7em'; // 100000以上
+            element.style.fontSize = '1.5em'; // 100000以上
         }
     }
 
