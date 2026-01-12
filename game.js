@@ -1202,6 +1202,20 @@ class ThreesGame {
         if (this.deleteMode) {
             button.classList.add('active');
             this.gameBoard.classList.add('delete-mode');
+
+            // 既存のタイルに削除イベントを追加
+            Object.values(this.tiles).forEach(tile => {
+                if (tile.element) {
+                    const deleteTileHandler = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.deleteTile(tile.id);
+                    };
+
+                    tile.element.addEventListener('click', deleteTileHandler, { once: true });
+                    tile.element.addEventListener('touchend', deleteTileHandler, { once: true });
+                }
+            });
         } else {
             button.classList.remove('active');
             this.gameBoard.classList.remove('delete-mode');
