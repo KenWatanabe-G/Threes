@@ -1,0 +1,8 @@
+// ローカル開発用設定ファイル
+// このファイルをコピーして config.local.js を作成してください
+// config.local.js は .gitignore に含まれているためpushされません
+
+window.SUPABASE_CONFIG = {
+    url: 'https://xxxxx.supabase.co',        // あなたのSupabase Project URL
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'  // あなたのanon public key
+};

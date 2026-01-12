@@ -1,0 +1,15 @@
+# ローカル設定ファイル（Supabase設定を含む）
+config.local.js
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node modules (使用する場合)
+node_modules/

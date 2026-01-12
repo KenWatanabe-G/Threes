@@ -900,7 +900,8 @@ body {
     .undo-button svg,
     .ai-toggle-button svg,
     .delete-mode-button svg,
-    .ai-debug-button svg {
+    .ai-debug-button svg,
+    .ranking-button svg {
         width: 20px;
         height: 20px;
     }
@@ -909,4 +910,263 @@ body {
         margin-top: 5px;
         font-size: clamp(0.6em, 1.5vw, 0.7em);
     }
+}
+
+/* ランキングボタン */
+.ranking-button {
+    background: #9b59b6;
+    color: white;
+    border: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    transition: all 0.2s ease;
+}
+
+.ranking-button:hover {
+    background: #8e44ad;
+    transform: translateY(-1px);
+}
+
+.ranking-button:active {
+    transform: translateY(0);
+}
+
+/* ゲームオーバーボタン群 */
+.game-over-buttons {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.register-ranking-button {
+    background: #9b59b6;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 8px;
+    font-size: 1.1em;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.register-ranking-button:hover {
+    background: #8e44ad;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ランキングパネル */
+.ranking-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.ranking-panel.hidden {
+    display: none;
+}
+
+.ranking-panel-content {
+    background: #FAF8EF;
+    border-radius: 15px;
+    padding: 25px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.ranking-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.ranking-panel-header h2 {
+    color: #776e65;
+    font-size: 1.8em;
+    margin: 0;
+}
+
+/* ランキングタブ */
+.ranking-tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.ranking-tab {
+    background: #ddd;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: bold;
+    color: #776e65;
+    transition: all 0.2s ease;
+    flex: 1;
+    min-width: 80px;
+}
+
+.ranking-tab:hover {
+    background: #ccc;
+}
+
+.ranking-tab.active {
+    background: #9b59b6;
+    color: white;
+}
+
+/* ランキングテーブル */
+.ranking-table-container {
+    overflow-x: auto;
+}
+
+.ranking-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95em;
+}
+
+.ranking-table th,
+.ranking-table td {
+    padding: 12px 10px;
+    text-align: center;
+    border-bottom: 1px solid #ddd;
+}
+
+.ranking-table th {
+    background: #776e65;
+    color: white;
+    font-weight: bold;
+}
+
+.ranking-table tbody tr:hover {
+    background: rgba(155, 89, 182, 0.1);
+}
+
+.ranking-table tbody tr.my-rank {
+    background: rgba(155, 89, 182, 0.2);
+    font-weight: bold;
+}
+
+/* ランキング登録モーダル */
+.ranking-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1001;
+}
+
+.ranking-modal.hidden {
+    display: none;
+}
+
+.ranking-modal-content {
+    background: #FAF8EF;
+    border-radius: 15px;
+    padding: 25px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.ranking-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.ranking-modal-header h2 {
+    color: #776e65;
+    font-size: 1.5em;
+    margin: 0;
+}
+
+.ranking-modal-body {
+    text-align: center;
+}
+
+.ranking-info {
+    font-size: 1.1em;
+    color: #776e65;
+    margin-bottom: 15px;
+}
+
+.ranking-info span {
+    font-weight: bold;
+    color: #9b59b6;
+}
+
+.ranking-input-group {
+    margin: 20px 0;
+    text-align: left;
+}
+
+.ranking-input-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #776e65;
+    font-weight: bold;
+}
+
+.ranking-input-group input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 1em;
+    transition: border-color 0.2s ease;
+}
+
+.ranking-input-group input:focus {
+    outline: none;
+    border-color: #9b59b6;
+}
+
+.submit-score-button {
+    background: #9b59b6;
+    color: white;
+    border: none;
+    padding: 15px 40px;
+    border-radius: 8px;
+    font-size: 1.1em;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.submit-score-button:hover {
+    background: #8e44ad;
+    transform: translateY(-2px);
 }
