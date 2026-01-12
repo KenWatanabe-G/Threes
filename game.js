@@ -1227,6 +1227,12 @@ class ThreesGame {
     deleteTile(tileId) {
         if (!this.deleteMode || this.isMoving) return;
 
+        // ドラッグ状態をリセット
+        this.isDragging = false;
+        this.dragDirection = null;
+        this.dragOffset = 0;
+        this.movableTilesCache = null;
+
         // 削除前に状態を保存
         this.saveState();
 
