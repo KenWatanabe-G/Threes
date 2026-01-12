@@ -1230,6 +1230,8 @@ class ThreesGame {
                     tile.element.remove();
                     tile.element = null;
                 }
+                // isNewフラグをクリアしてアニメーションを防止
+                tile.isNew = false;
             });
             this.render();
         }
@@ -1250,26 +1252,42 @@ class ThreesGame {
         const tile = this.tiles[tileId];
         if (!tile) return;
 
-        // タイル要素を削除
+        // 削除アニメーションを開始
         if (tile.element) {
-            tile.element.remove();
+            tile.element.classList.add('tile-deleting');
+
+            // アニメーション完了後に実際の削除処理
+            setTimeout(() => {
+                // タイル要素を削除
+                if (tile.element) {
+                    tile.element.remove();
+                }
+
+                // タイルデータから削除
+                delete this.tiles[tileId];
+
+                // 削除モードを自動的にオフ
+                this.toggleDeleteMode();
+
+                // UIを更新
+                this.render();
+                this.updateUndoButton();
+
+                // スコアを再計算
+                this.updateScore();
+
+                // ゲーム状態を自動保存
+                this.saveGameState();
+            }, 300); // アニメーション時間と同じ
+        } else {
+            // 要素がない場合は即座に削除
+            delete this.tiles[tileId];
+            this.toggleDeleteMode();
+            this.render();
+            this.updateUndoButton();
+            this.updateScore();
+            this.saveGameState();
         }
-
-        // タイルデータから削除
-        delete this.tiles[tileId];
-
-        // 削除モードを自動的にオフ
-        this.toggleDeleteMode();
-
-        // UIを更新
-        this.render();
-        this.updateUndoButton();
-
-        // スコアを再計算
-        this.updateScore();
-
-        // ゲーム状態を自動保存
-        this.saveGameState();
     }
 
     copyBoardToClipboard() {

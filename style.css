@@ -321,6 +321,26 @@ body {
     transition: opacity 0.2s, transform 0.2s;
 }
 
+/* タイル削除アニメーション */
+.tile-deleting {
+    animation: tile-delete 0.3s ease-out forwards;
+}
+
+@keyframes tile-delete {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(0);
+        opacity: 0;
+    }
+}
+
 /* タイルの色 - Threesオリジナル */
 .tile-1 {
     background: #89CFF0;
