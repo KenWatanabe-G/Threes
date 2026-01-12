@@ -1269,3 +1269,11 @@ body {
 .confirm-button:active {
     transform: scale(0.95);
 }
+
+/* モバイル向けスタイル */
+@media (max-width: 768px) {
+    /* AI分析ボタンを非表示 */
+    .ai-debug-button {
+        display: none;
+    }
+}
