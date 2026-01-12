@@ -24,21 +24,8 @@ jobs:
 
       - name: Inject Supabase Config
         run: |
-          echo "Checking if secrets are set..."
-          if [ -z "${{ secrets.SUPABASE_URL }}" ]; then
-            echo "WARNING: SUPABASE_URL secret is not set!"
-          else
-            echo "SUPABASE_URL is set"
-          fi
-          if [ -z "${{ secrets.SUPABASE_ANON_KEY }}" ]; then
-            echo "WARNING: SUPABASE_ANON_KEY secret is not set!"
-          else
-            echo "SUPABASE_ANON_KEY is set"
-          fi
           sed -i "s|__SUPABASE_URL__|${{ secrets.SUPABASE_URL }}|g" game.js
           sed -i "s|__SUPABASE_ANON_KEY__|${{ secrets.SUPABASE_ANON_KEY }}|g" game.js
-          echo "Verifying replacement..."
-          grep -n "SUPABASE_CONFIG" game.js | tail -5
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
