@@ -119,7 +119,14 @@ class ThreesGame {
         this.setupGrid();
         this.setupEventListeners();
         this.updateBestScore();
-        this.startGame();
+
+        // 保存されたゲーム状態があれば復元、なければ新規ゲーム開始
+        const savedState = this.loadGameState();
+        if (savedState && savedState.tiles && savedState.tiles.length > 0) {
+            this.restoreGameState(savedState);
+        } else {
+            this.startGame();
+        }
     }
 
     setupGrid() {
@@ -601,6 +608,9 @@ class ThreesGame {
             this.toggleAI();
         }
 
+        // 保存データをクリア
+        this.clearGameState();
+
         this.tiles = {};
         this.nextTileId = 0;
         this.score = 0;
@@ -762,6 +772,8 @@ class ThreesGame {
                     if (this.debugPanelOpen) {
                         this.updateDebugPanel();
                     }
+                    // ゲーム状態を自動保存
+                    this.saveGameState();
                 }, 20);
             }, 120);
         } else {
@@ -1145,6 +1157,9 @@ class ThreesGame {
 
         // Undoボタンの状態を更新
         this.updateUndoButton();
+
+        // ゲーム状態を自動保存
+        this.saveGameState();
     }
 
     updateUndoButton() {
@@ -1190,6 +1205,9 @@ class ThreesGame {
         // UIを更新
         this.render();
         this.updateUndoButton();
+
+        // ゲーム状態を自動保存
+        this.saveGameState();
     }
 
     copyBoardToClipboard() {
@@ -1708,6 +1726,95 @@ class ThreesGame {
 
             tbody.appendChild(row);
         });
+    }
+
+    // ゲーム状態をlocalStorageに保存
+    saveGameState() {
+        const state = {
+            tiles: Object.values(this.tiles).map(t => ({
+                id: t.id,
+                value: t.value,
+                row: t.row,
+                col: t.col
+            })),
+            nextTileId: this.nextTileId,
+            score: this.score,
+            nextTileValue: this.nextTileValue,
+            nextTileIsBonus: this.nextTileIsBonus,
+            deck: [...this.deck],
+            gameOver: this.isGameOver()
+        };
+
+        localStorage.setItem('threes-game-state', JSON.stringify(state));
+    }
+
+    // localStorageからゲーム状態を読み込み
+    loadGameState() {
+        const saved = localStorage.getItem('threes-game-state');
+        if (!saved) return null;
+
+        try {
+            return JSON.parse(saved);
+        } catch (e) {
+            console.error('ゲーム状態の読み込みに失敗しました:', e);
+            return null;
+        }
+    }
+
+    // 保存されたゲーム状態をクリア
+    clearGameState() {
+        localStorage.removeItem('threes-game-state');
+    }
+
+    // 保存された状態からゲームを復元
+    restoreGameState(state) {
+        // AI停止
+        if (this.aiMode) {
+            this.toggleAI();
+        }
+
+        // 既存のタイル要素を削除
+        const existingTiles = this.gameBoard.querySelectorAll('.tile');
+        existingTiles.forEach(tile => tile.remove());
+
+        // タイルデータを復元
+        this.tiles = {};
+        state.tiles.forEach(tileData => {
+            this.tiles[tileData.id] = {
+                id: tileData.id,
+                value: tileData.value,
+                row: tileData.row,
+                col: tileData.col,
+                element: null,
+                isNew: false,
+                merged: false,
+                merging: false
+            };
+        });
+
+        // その他の状態を復元
+        this.nextTileId = state.nextTileId;
+        this.score = state.score;
+        this.nextTileValue = state.nextTileValue;
+        this.nextTileIsBonus = state.nextTileIsBonus;
+        this.deck = [...state.deck];
+
+        // 履歴をクリア
+        this.history = [];
+
+        // ゲームオーバー画面を非表示
+        this.gameOverElement.classList.add('hidden');
+
+        // UIを更新
+        this.updateScore();
+        this.updateNextTileDisplay();
+        this.render();
+        this.updateUndoButton();
+
+        // ゲームオーバー状態だった場合は表示
+        if (state.gameOver) {
+            this.endGame();
+        }
     }
 }
 
