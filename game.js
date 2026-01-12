@@ -132,8 +132,9 @@ class ThreesGame {
         this.updateBestScore();
 
         // 保存されたゲーム状態があれば復元、なければ新規ゲーム開始
+        // ただしゲームオーバー状態だった場合は新しいゲームを開始
         const savedState = this.loadGameState();
-        if (savedState && savedState.tiles && savedState.tiles.length > 0) {
+        if (savedState && savedState.tiles && savedState.tiles.length > 0 && !savedState.gameOver) {
             this.restoreGameState(savedState);
         } else {
             this.startGame();
@@ -1183,7 +1184,7 @@ class ThreesGame {
     }
 
     canUndo() {
-        return this.history.length > 0 && !this.aiMode && !this.isMoving;
+        return this.history.length > 0 && !this.aiMode && !this.isMoving && !this.isGameOver();
     }
 
     // 確認ダイアログを表示（Promise版）
@@ -1300,6 +1301,9 @@ class ThreesGame {
     }
 
     toggleDeleteMode() {
+        // ゲームオーバー時は削除モードに入れない
+        if (this.isGameOver()) return;
+
         this.deleteMode = !this.deleteMode;
         const button = document.getElementById('delete-mode-button');
 
