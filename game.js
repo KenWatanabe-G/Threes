@@ -1231,8 +1231,9 @@ class ThreesGame {
     async undo() {
         if (!this.canUndo()) return;
 
-        // 初回のUndo使用時は確認ダイアログを表示
-        if (!this.usedUndo) {
+        // カテゴリが実際に変わる場合のみ確認ダイアログを表示
+        // 削除を使用済み（なんでもあり）の場合はアンドゥを使ってもカテゴリは変わらない
+        if (!this.usedUndo && !this.usedDelete) {
             const confirmed = await this.showConfirmDialog(
                 'ランキングカテゴリ変更',
                 'アンドゥを使用すると、ランキングカテゴリが「アンドゥあり」に変更されます。続行しますか？'
