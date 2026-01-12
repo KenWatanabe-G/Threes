@@ -247,6 +247,22 @@
         </div>
     </div>
 
+    <!-- 確認ダイアログ -->
+    <div id="confirm-dialog" class="confirm-dialog hidden">
+        <div class="confirm-dialog-content">
+            <div class="confirm-dialog-header">
+                <h2 id="confirm-dialog-title">確認</h2>
+            </div>
+            <div class="confirm-dialog-body">
+                <p id="confirm-dialog-message"></p>
+            </div>
+            <div class="confirm-dialog-buttons">
+                <button id="confirm-dialog-cancel" class="confirm-button cancel">キャンセル</button>
+                <button id="confirm-dialog-ok" class="confirm-button ok">OK</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ローカル設定（存在する場合のみ読み込み） -->
     <script src="config.local.js" onerror="console.log('config.local.js not found, using default config')"></script>
     <script src="ai.js"></script>

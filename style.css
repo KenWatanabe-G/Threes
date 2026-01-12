@@ -1170,3 +1170,102 @@ body {
     background: #8e44ad;
     transform: translateY(-2px);
 }
+
+/* 確認ダイアログ */
+.confirm-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    animation: fadeIn 0.2s ease;
+}
+
+.confirm-dialog.hidden {
+    display: none;
+}
+
+.confirm-dialog-content {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 360px;
+    width: 90%;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    animation: slideIn 0.2s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.confirm-dialog-header {
+    margin-bottom: 16px;
+}
+
+.confirm-dialog-header h2 {
+    color: #776e65;
+    font-size: 1.3em;
+    margin: 0;
+}
+
+.confirm-dialog-body {
+    margin-bottom: 24px;
+}
+
+.confirm-dialog-body p {
+    color: #5a534a;
+    font-size: 1em;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.confirm-dialog-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.confirm-button {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.confirm-button.cancel {
+    background: #cdc1b4;
+    color: #776e65;
+}
+
+.confirm-button.cancel:hover {
+    background: #bfb1a3;
+}
+
+.confirm-button.ok {
+    background: #e74c3c;
+    color: white;
+}
+
+.confirm-button.ok:hover {
+    background: #c0392b;
+}
+
+.confirm-button:active {
+    transform: scale(0.95);
+}

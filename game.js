@@ -1186,8 +1186,59 @@ class ThreesGame {
         return this.history.length > 0 && !this.aiMode && !this.isMoving;
     }
 
-    undo() {
+    // 確認ダイアログを表示（Promise版）
+    showConfirmDialog(title, message) {
+        return new Promise((resolve) => {
+            const dialog = document.getElementById('confirm-dialog');
+            const titleEl = document.getElementById('confirm-dialog-title');
+            const messageEl = document.getElementById('confirm-dialog-message');
+            const okButton = document.getElementById('confirm-dialog-ok');
+            const cancelButton = document.getElementById('confirm-dialog-cancel');
+
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            dialog.classList.remove('hidden');
+
+            const cleanup = () => {
+                dialog.classList.add('hidden');
+                okButton.removeEventListener('click', handleOk);
+                okButton.removeEventListener('touchend', handleOk);
+                cancelButton.removeEventListener('click', handleCancel);
+                cancelButton.removeEventListener('touchend', handleCancel);
+            };
+
+            const handleOk = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                cleanup();
+                resolve(true);
+            };
+
+            const handleCancel = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                cleanup();
+                resolve(false);
+            };
+
+            okButton.addEventListener('click', handleOk);
+            okButton.addEventListener('touchend', handleOk);
+            cancelButton.addEventListener('click', handleCancel);
+            cancelButton.addEventListener('touchend', handleCancel);
+        });
+    }
+
+    async undo() {
         if (!this.canUndo()) return;
+
+        // 初回のUndo使用時は確認ダイアログを表示
+        if (!this.usedUndo) {
+            const confirmed = await this.showConfirmDialog(
+                'ランキングカテゴリ変更',
+                'アンドゥを使用すると、ランキングカテゴリが「アンドゥあり」に変更されます。続行しますか？'
+            );
+            if (!confirmed) return;
+        }
 
         // Undo使用フラグを立てる
         this.usedUndo = true;
@@ -1287,8 +1338,21 @@ class ThreesGame {
         }
     }
 
-    deleteTile(tileId) {
+    async deleteTile(tileId) {
         if (!this.deleteMode || this.isMoving) return;
+
+        // 初回の削除機能使用時は確認ダイアログを表示
+        if (!this.usedDelete) {
+            const confirmed = await this.showConfirmDialog(
+                'ランキングカテゴリ変更',
+                '削除機能を使用すると、ランキングカテゴリが「なんでもあり」に変更されます。続行しますか？'
+            );
+            if (!confirmed) {
+                // キャンセル時は削除モードを解除
+                this.toggleDeleteMode();
+                return;
+            }
+        }
 
         // 削除使用フラグを立てる
         this.usedDelete = true;
