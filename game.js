@@ -648,6 +648,9 @@ class ThreesGame {
         this.generateNextTile();
 
         this.render();
+
+        // 盤面からスコアを計算
+        this.updateScore();
     }
 
     generateNextTile() {
@@ -760,6 +763,8 @@ class ThreesGame {
             setTimeout(() => {
                 this.addNewTile(direction);
                 this.render();
+                // 新タイル追加後にスコアを更新
+                this.updateScore();
 
                 setTimeout(() => {
                     if (this.isGameOver()) {
@@ -1075,7 +1080,28 @@ class ThreesGame {
         }
     }
 
+    // タイル値から得点を計算（3以上のタイルのみ）
+    // タイル値が 3 × 2^n のとき、得点 = 3^(n+1)
+    calculateTileScore(value) {
+        if (value < 3) return 0;
+
+        // n を求める: value = 3 × 2^n → 2^n = value / 3 → n = log2(value / 3)
+        const n = Math.log2(value / 3);
+        // 得点 = 3^(n+1)
+        return Math.pow(3, n + 1);
+    }
+
+    // 盤面全体のスコアを計算
+    calculateBoardScore() {
+        let totalScore = 0;
+        Object.values(this.tiles).forEach(tile => {
+            totalScore += this.calculateTileScore(tile.value);
+        });
+        return totalScore;
+    }
+
     updateScore() {
+        this.score = this.calculateBoardScore();
         this.scoreElement.textContent = this.score;
     }
 
@@ -1205,6 +1231,9 @@ class ThreesGame {
         // UIを更新
         this.render();
         this.updateUndoButton();
+
+        // スコアを再計算
+        this.updateScore();
 
         // ゲーム状態を自動保存
         this.saveGameState();
@@ -1577,10 +1606,6 @@ class ThreesGame {
                         // 数字の桁数に応じてフォントサイズを調整
                         this.adjustFontSize(targetTile.element, targetTile.value);
 
-                        // スコア更新
-                        this.score += targetTile.value;
-                        this.updateScore();
-
                         // アニメーション後にクラスを削除
                         setTimeout(() => {
                             targetTile.element.classList.remove('tile-merged');
@@ -1593,6 +1618,8 @@ class ThreesGame {
                     }
                     delete this.tiles[tile.id];
                 });
+                // マージ完了後にスコアを再計算
+                this.updateScore();
             }, 120); // 移動アニメーション完了後
         }
 
