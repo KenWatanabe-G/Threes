@@ -1873,7 +1873,9 @@ class ThreesGame {
             nextTileValue: this.nextTileValue,
             nextTileIsBonus: this.nextTileIsBonus,
             deck: [...this.deck],
-            gameOver: this.isGameOver()
+            gameOver: this.isGameOver(),
+            usedUndo: this.usedUndo,
+            usedDelete: this.usedDelete
         };
 
         localStorage.setItem('threes-game-state', JSON.stringify(state));
@@ -1929,6 +1931,10 @@ class ThreesGame {
         this.nextTileValue = state.nextTileValue;
         this.nextTileIsBonus = state.nextTileIsBonus;
         this.deck = [...state.deck];
+
+        // ランキング用フラグを復元（古いセーブデータとの互換性のためデフォルト値をfalseに）
+        this.usedUndo = state.usedUndo || false;
+        this.usedDelete = state.usedDelete || false;
 
         // 履歴をクリア
         this.history = [];
