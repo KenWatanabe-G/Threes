@@ -203,16 +203,17 @@ class ThreesGame {
                 }
             }
 
-            // 方向に沿った移動量を計算
+            // 方向に沿った移動量を計算（スワイプ距離の2倍で移動）
             if (this.dragDirection) {
+                const sensitivity = 2; // 感度倍率
                 if (this.dragDirection === 'left') {
-                    this.dragOffset = Math.max(Math.min(deltaX, 0), -this.commitThreshold);
+                    this.dragOffset = Math.max(Math.min(deltaX * sensitivity, 0), -this.commitThreshold);
                 } else if (this.dragDirection === 'right') {
-                    this.dragOffset = Math.min(Math.max(deltaX, 0), this.commitThreshold);
+                    this.dragOffset = Math.min(Math.max(deltaX * sensitivity, 0), this.commitThreshold);
                 } else if (this.dragDirection === 'up') {
-                    this.dragOffset = Math.max(Math.min(deltaY, 0), -this.commitThreshold);
+                    this.dragOffset = Math.max(Math.min(deltaY * sensitivity, 0), -this.commitThreshold);
                 } else if (this.dragDirection === 'down') {
-                    this.dragOffset = Math.min(Math.max(deltaY, 0), this.commitThreshold);
+                    this.dragOffset = Math.min(Math.max(deltaY * sensitivity, 0), this.commitThreshold);
                 }
 
                 this.renderDragPreview();
@@ -302,20 +303,21 @@ class ThreesGame {
                 }
             }
 
-            // 方向に沿った移動量を計算（元の位置より逆には戻らない）
+            // 方向に沿った移動量を計算（スワイプ距離の2倍で移動）
             if (this.dragDirection) {
+                const sensitivity = 2; // 感度倍率
                 if (this.dragDirection === 'left') {
                     // 左方向: 負の値、0より小さく、-commitThresholdより大きい
-                    this.dragOffset = Math.max(Math.min(deltaX, 0), -this.commitThreshold);
+                    this.dragOffset = Math.max(Math.min(deltaX * sensitivity, 0), -this.commitThreshold);
                 } else if (this.dragDirection === 'right') {
                     // 右方向: 正の値、0より大きく、commitThresholdより小さい
-                    this.dragOffset = Math.min(Math.max(deltaX, 0), this.commitThreshold);
+                    this.dragOffset = Math.min(Math.max(deltaX * sensitivity, 0), this.commitThreshold);
                 } else if (this.dragDirection === 'up') {
                     // 上方向: 負の値、0より小さく、-commitThresholdより大きい
-                    this.dragOffset = Math.max(Math.min(deltaY, 0), -this.commitThreshold);
+                    this.dragOffset = Math.max(Math.min(deltaY * sensitivity, 0), -this.commitThreshold);
                 } else if (this.dragDirection === 'down') {
                     // 下方向: 正の値、0より大きく、commitThresholdより小さい
-                    this.dragOffset = Math.min(Math.max(deltaY, 0), this.commitThreshold);
+                    this.dragOffset = Math.min(Math.max(deltaY * sensitivity, 0), this.commitThreshold);
                 }
 
                 // タイルを移動量に応じて表示
