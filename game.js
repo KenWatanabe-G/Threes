@@ -49,6 +49,16 @@ class ThreesGame {
         // AI分析パネル
         this.debugPanelOpen = false;
 
+        // ランキング用フラグ
+        this.usedUndo = false;      // Undoを使用したか
+        this.usedDelete = false;    // 削除機能を使用したか
+
+        // クライアントID（ランキング用）
+        this.clientId = this.getOrCreateClientId();
+
+        // プレイ回数
+        this.playCount = parseInt(localStorage.getItem('threes-play-count') || '0');
+
         this.init();
     }
 
@@ -118,6 +128,7 @@ class ThreesGame {
     init() {
         this.setupGrid();
         this.setupEventListeners();
+        this.setupRankingEventListeners();
         this.updateBestScore();
 
         // 保存されたゲーム状態があれば復元、なければ新規ゲーム開始
@@ -619,6 +630,14 @@ class ThreesGame {
         this.updateScore();
         this.gameOverElement.classList.add('hidden');
 
+        // ランキング用フラグをリセット
+        this.usedUndo = false;
+        this.usedDelete = false;
+
+        // プレイ回数をインクリメント
+        this.playCount++;
+        localStorage.setItem('threes-play-count', this.playCount.toString());
+
         // 履歴をクリア
         this.history = [];
         this.updateUndoButton();
@@ -1080,6 +1099,34 @@ class ThreesGame {
             localStorage.setItem('threes-best-score', this.bestScore);
             this.updateBestScore();
         }
+
+        // 自動ランキング登録
+        this.autoRegisterRanking();
+    }
+
+    // 自動ランキング登録処理
+    async autoRegisterRanking() {
+        const savedName = this.getPlayerName();
+        const statusElement = document.getElementById('ranking-status');
+
+        if (savedName) {
+            // 名前が保存されていれば自動登録
+            if (statusElement) {
+                statusElement.textContent = 'ランキング登録中...';
+            }
+            const scoreResult = await this.submitScoreUpsert(savedName);
+            // プレイ回数も同時に登録
+            await this.submitPlayCountAuto(savedName);
+            if (statusElement) {
+                statusElement.textContent = scoreResult ? 'ランキングに登録しました' : 'ランキング登録に失敗しました';
+            }
+        } else {
+            // 名前がなければモーダルを表示
+            if (statusElement) {
+                statusElement.textContent = '';
+            }
+            this.showRankingModal();
+        }
     }
 
     // タイル値から得点を計算（3以上のタイルのみ）
@@ -1141,6 +1188,9 @@ class ThreesGame {
 
     undo() {
         if (!this.canUndo()) return;
+
+        // Undo使用フラグを立てる
+        this.usedUndo = true;
 
         // 最後の状態を取得して削除
         const state = this.history.pop();
@@ -1239,6 +1289,9 @@ class ThreesGame {
 
     deleteTile(tileId) {
         if (!this.deleteMode || this.isMoving) return;
+
+        // 削除使用フラグを立てる
+        this.usedDelete = true;
 
         // ドラッグ状態をリセット
         this.isDragging = false;
@@ -1894,7 +1947,367 @@ class ThreesGame {
             this.endGame();
         }
     }
+
+    // ========================================
+    // ランキング機能
+    // ========================================
+
+    // クライアントIDを取得または生成
+    getOrCreateClientId() {
+        let clientId = localStorage.getItem('threes-client-id');
+        if (!clientId) {
+            clientId = 'client_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
+            localStorage.setItem('threes-client-id', clientId);
+        }
+        return clientId;
+    }
+
+    // ランキングカテゴリを決定
+    getRankingCategory() {
+        if (this.usedDelete) {
+            return 'anything_goes'; // なんでもあり
+        } else if (this.usedUndo) {
+            return 'with_undo'; // アンドゥあり
+        } else {
+            return 'normal'; // 通常
+        }
+    }
+
+    // プレイヤー名を取得
+    getPlayerName() {
+        return localStorage.getItem('threes-player-name') || '';
+    }
+
+    // プレイヤー名を保存
+    setPlayerName(name) {
+        localStorage.setItem('threes-player-name', name);
+    }
+
+    // ランキング登録モーダルを表示
+    showRankingModal() {
+        const modal = document.getElementById('ranking-modal');
+        if (!modal) return;
+
+        const category = this.getRankingCategory();
+        const categoryNames = {
+            'normal': '通常ランキング',
+            'with_undo': 'アンドゥありランキング',
+            'anything_goes': 'なんでもありランキング'
+        };
+
+        document.getElementById('ranking-category-display').textContent = categoryNames[category];
+        document.getElementById('ranking-score-display').textContent = this.score;
+        document.getElementById('ranking-player-name').value = this.getPlayerName();
+
+        modal.classList.remove('hidden');
+    }
+
+    // ランキング登録モーダルを閉じる
+    hideRankingModal() {
+        const modal = document.getElementById('ranking-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+    }
+
+    // スコアをランキングに登録（モーダルから呼ばれる）
+    async submitScore(playerName) {
+        if (!playerName || playerName.trim() === '') {
+            alert('名前を入力してください');
+            return false;
+        }
+
+        const trimmedName = playerName.trim();
+        const result = await this.submitScoreUpsert(trimmedName);
+        // プレイ回数も同時に登録
+        await this.submitPlayCountAuto(trimmedName);
+        if (result) {
+            this.hideRankingModal();
+            // ステータス更新
+            const statusElement = document.getElementById('ranking-status');
+            if (statusElement) {
+                statusElement.textContent = 'ランキングに登録しました';
+            }
+        }
+        return result;
+    }
+
+    // スコアをランキングに登録（upsert - ハイスコアのみ上書き）
+    async submitScoreUpsert(playerName) {
+        this.setPlayerName(playerName);
+
+        const category = this.getRankingCategory();
+        const currentScore = this.score;
+        const maxTile = this.getMaxTileValue();
+
+        try {
+            // まず既存のレコードを確認
+            const existingResponse = await fetch(
+                `${SUPABASE_CONFIG.url}/rest/v1/rankings?client_id=eq.${this.clientId}&category=eq.${category}&select=score`,
+                {
+                    headers: {
+                        'apikey': SUPABASE_CONFIG.anonKey,
+                        'Authorization': 'Bearer ' + SUPABASE_CONFIG.anonKey
+                    }
+                }
+            );
+
+            if (!existingResponse.ok) {
+                throw new Error('既存レコードの確認に失敗しました');
+            }
+
+            const existing = await existingResponse.json();
+
+            // 既存レコードがあり、現在のスコアが低い場合は更新しない
+            if (existing.length > 0 && existing[0].score >= currentScore) {
+                console.log('既存のハイスコアの方が高いため更新しません');
+                return true;
+            }
+
+            // 新規登録またはハイスコア更新
+            const payload = {
+                client_id: this.clientId,
+                player_name: playerName,
+                score: currentScore,
+                category: category,
+                max_tile: maxTile,
+                updated_at: new Date().toISOString()
+            };
+
+            // upsert: on_conflictでユニーク制約のカラムを指定
+            const response = await fetch(SUPABASE_CONFIG.url + '/rest/v1/rankings?on_conflict=client_id,category', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': SUPABASE_CONFIG.anonKey,
+                    'Authorization': 'Bearer ' + SUPABASE_CONFIG.anonKey,
+                    'Prefer': 'resolution=merge-duplicates,return=minimal'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error('スコア登録に失敗しました');
+            }
+
+            console.log('ランキングを更新しました');
+            return true;
+        } catch (error) {
+            console.error('スコア登録エラー:', error);
+            return false;
+        }
+    }
+
+    // プレイ回数をランキングに登録（upsert）
+    async submitPlayCount(playerName) {
+        if (!playerName || playerName.trim() === '') {
+            alert('名前を入力してください');
+            return false;
+        }
+
+        return await this.submitPlayCountAuto(playerName.trim());
+    }
+
+    // プレイ回数を自動登録（upsert - alertなし）
+    async submitPlayCountAuto(playerName) {
+        const payload = {
+            client_id: this.clientId,
+            player_name: playerName,
+            play_count: this.playCount
+        };
+
+        try {
+            // upsert: on_conflictでユニーク制約のカラムを指定
+            const response = await fetch(SUPABASE_CONFIG.url + '/rest/v1/play_counts?on_conflict=client_id', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': SUPABASE_CONFIG.anonKey,
+                    'Authorization': 'Bearer ' + SUPABASE_CONFIG.anonKey,
+                    'Prefer': 'resolution=merge-duplicates,return=minimal'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error('プレイ回数登録に失敗しました');
+            }
+
+            console.log('プレイ回数を更新しました');
+            return true;
+        } catch (error) {
+            console.error('プレイ回数登録エラー:', error);
+            return false;
+        }
+    }
+
+    // ランキングを取得
+    async fetchRanking(category, limit = 50) {
+        try {
+            const response = await fetch(
+                `${SUPABASE_CONFIG.url}/rest/v1/rankings?category=eq.${category}&order=score.desc&limit=${limit}`,
+                {
+                    headers: {
+                        'apikey': SUPABASE_CONFIG.anonKey,
+                        'Authorization': 'Bearer ' + SUPABASE_CONFIG.anonKey
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('ランキング取得に失敗しました');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('ランキング取得エラー:', error);
+            return [];
+        }
+    }
+
+    // プレイ回数ランキングを取得
+    async fetchPlayCountRanking(limit = 50) {
+        try {
+            const response = await fetch(
+                `${SUPABASE_CONFIG.url}/rest/v1/play_counts?order=play_count.desc&limit=${limit}`,
+                {
+                    headers: {
+                        'apikey': SUPABASE_CONFIG.anonKey,
+                        'Authorization': 'Bearer ' + SUPABASE_CONFIG.anonKey
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('プレイ回数ランキング取得に失敗しました');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('プレイ回数ランキング取得エラー:', error);
+            return [];
+        }
+    }
+
+    // ランキング一覧を表示
+    async showRankingList(category = 'normal') {
+        const panel = document.getElementById('ranking-panel');
+        if (!panel) return;
+
+        // タブをアクティブに
+        document.querySelectorAll('.ranking-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.category === category);
+        });
+
+        const tbody = document.getElementById('ranking-table-body');
+        tbody.innerHTML = '<tr><td colspan="4">読み込み中...</td></tr>';
+
+        panel.classList.remove('hidden');
+
+        let rankings;
+        if (category === 'play_count') {
+            rankings = await this.fetchPlayCountRanking();
+            tbody.innerHTML = '';
+            rankings.forEach((entry, index) => {
+                const row = document.createElement('tr');
+                const isMe = entry.client_id === this.clientId;
+                if (isMe) row.classList.add('my-rank');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${this.escapeHtml(entry.player_name)}</td>
+                    <td>${entry.play_count.toLocaleString()}回</td>
+                    <td>-</td>
+                `;
+                tbody.appendChild(row);
+            });
+        } else {
+            rankings = await this.fetchRanking(category);
+            tbody.innerHTML = '';
+            rankings.forEach((entry, index) => {
+                const row = document.createElement('tr');
+                const isMe = entry.client_id === this.clientId;
+                if (isMe) row.classList.add('my-rank');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${this.escapeHtml(entry.player_name)}</td>
+                    <td>${entry.score.toLocaleString()}</td>
+                    <td>${entry.max_tile}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        if (rankings.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4">まだランキングデータがありません</td></tr>';
+        }
+    }
+
+    // ランキングパネルを閉じる
+    hideRankingPanel() {
+        const panel = document.getElementById('ranking-panel');
+        if (panel) {
+            panel.classList.add('hidden');
+        }
+    }
+
+    // HTMLエスケープ
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ランキングイベントリスナーを設定
+    setupRankingEventListeners() {
+        // ランキングボタン
+        const rankingButton = document.getElementById('ranking-button');
+        if (rankingButton) {
+            rankingButton.addEventListener('click', () => {
+                this.showRankingList('normal');
+            });
+        }
+
+        // ランキングパネルを閉じる
+        const closeRankingPanel = document.getElementById('close-ranking-panel');
+        if (closeRankingPanel) {
+            closeRankingPanel.addEventListener('click', () => {
+                this.hideRankingPanel();
+            });
+        }
+
+        // ランキングタブ切り替え
+        document.querySelectorAll('.ranking-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                this.showRankingList(tab.dataset.category);
+            });
+        });
+
+        // スコア登録モーダル
+        const submitScoreButton = document.getElementById('submit-score-button');
+        if (submitScoreButton) {
+            submitScoreButton.addEventListener('click', () => {
+                const playerName = document.getElementById('ranking-player-name').value;
+                this.submitScore(playerName);
+            });
+        }
+
+        // モーダルを閉じる
+        const closeRankingModal = document.getElementById('close-ranking-modal');
+        if (closeRankingModal) {
+            closeRankingModal.addEventListener('click', () => {
+                this.hideRankingModal();
+            });
+        }
+    }
 }
+
+// Supabase設定
+// ローカル開発時: config.local.js で上書き可能
+// 本番環境: GitHub Actionsでビルド時に注入
+const SUPABASE_CONFIG = window.SUPABASE_CONFIG || {
+    url: '__SUPABASE_URL__',
+    anonKey: '__SUPABASE_ANON_KEY__'
+};
 
 // ゲームを開始
 document.addEventListener('DOMContentLoaded', () => {

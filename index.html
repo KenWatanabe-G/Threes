@@ -79,6 +79,13 @@
                         <rect x="7" y="16" width="4" height="1"/>
                     </svg>
                 </button>
+                <button id="ranking-button" class="ranking-button" title="ランキング">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                        <rect x="3" y="12" width="5" height="9" rx="1"/>
+                        <rect x="9.5" y="6" width="5" height="15" rx="1"/>
+                        <rect x="16" y="9" width="5" height="12" rx="1"/>
+                    </svg>
+                </button>
             </div>
             <div class="next-tile-preview">
                 <span class="next-label">次のタイル:</span>
@@ -96,7 +103,10 @@
             <div id="game-over" class="game-over hidden">
                 <h2>ゲームオーバー</h2>
                 <p>最終スコア: <span id="final-score">0</span></p>
-                <button id="restart-button" class="restart-button">もう一度</button>
+                <p id="ranking-status" class="ranking-status"></p>
+                <div class="game-over-buttons">
+                    <button id="restart-button" class="restart-button">もう一度</button>
+                </div>
             </div>
         </div>
 
@@ -183,6 +193,62 @@
         </svg>
     </button>
 
+    <!-- ランキングパネル -->
+    <div id="ranking-panel" class="ranking-panel hidden">
+        <div class="ranking-panel-content">
+            <div class="ranking-panel-header">
+                <h2>ランキング</h2>
+                <button id="close-ranking-panel" class="close-button">×</button>
+            </div>
+            <div class="ranking-tabs">
+                <button class="ranking-tab active" data-category="normal">通常</button>
+                <button class="ranking-tab" data-category="with_undo">アンドゥあり</button>
+                <button class="ranking-tab" data-category="anything_goes">なんでもあり</button>
+                <button class="ranking-tab" data-category="play_count">プレイ回数</button>
+            </div>
+            <div class="ranking-table-container">
+                <table class="ranking-table">
+                    <thead>
+                        <tr>
+                            <th>順位</th>
+                            <th>名前</th>
+                            <th>スコア</th>
+                            <th>最大タイル</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ranking-table-body">
+                        <!-- JavaScriptで動的に生成 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ランキング登録モーダル -->
+    <div id="ranking-modal" class="ranking-modal hidden">
+        <div class="ranking-modal-content">
+            <div class="ranking-modal-header">
+                <h2>ランキング登録</h2>
+                <button id="close-ranking-modal" class="close-button">×</button>
+            </div>
+            <div class="ranking-modal-body">
+                <p class="ranking-info">
+                    カテゴリ: <span id="ranking-category-display">通常ランキング</span>
+                </p>
+                <p class="ranking-info">
+                    スコア: <span id="ranking-score-display">0</span>
+                </p>
+                <div class="ranking-input-group">
+                    <label for="ranking-player-name">名前</label>
+                    <input type="text" id="ranking-player-name" placeholder="名前を入力" maxlength="20">
+                </div>
+                <button id="submit-score-button" class="submit-score-button">登録する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ローカル設定（存在する場合のみ読み込み） -->
+    <script src="config.local.js" onerror="console.log('config.local.js not found, using default config')"></script>
     <script src="ai.js"></script>
     <script src="game.js"></script>
 </body>
