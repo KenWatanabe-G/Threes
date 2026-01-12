@@ -172,7 +172,7 @@ class ThreesGame {
 
         // タッチ操作（ドラッグ追従システム）
         this.gameBoard.addEventListener('touchstart', (e) => {
-            if (this.isMoving) return;
+            if (this.isMoving || this.deleteMode) return;
 
             this.touchStartX = e.touches[0].clientX;
             this.touchStartY = e.touches[0].clientY;
@@ -272,7 +272,7 @@ class ThreesGame {
 
         // マウス操作（ドラッグ追従システム）
         this.gameBoard.addEventListener('mousedown', (e) => {
-            if (this.isMoving) return;
+            if (this.isMoving || this.deleteMode) return;
 
             this.touchStartX = e.clientX;
             this.touchStartY = e.clientY;
@@ -1209,6 +1209,8 @@ class ThreesGame {
             Object.values(this.tiles).forEach(tile => {
                 if (tile.element) {
                     const deleteTileHandler = (e) => {
+                        // 削除モードがオフの場合は何もしない
+                        if (!this.deleteMode) return;
                         e.preventDefault();
                         e.stopPropagation();
                         this.deleteTile(tile.id);
@@ -1221,6 +1223,15 @@ class ThreesGame {
         } else {
             button.classList.remove('active');
             this.gameBoard.classList.remove('delete-mode');
+
+            // タイル要素を再作成して残っているイベントリスナーをクリア
+            Object.values(this.tiles).forEach(tile => {
+                if (tile.element) {
+                    tile.element.remove();
+                    tile.element = null;
+                }
+            });
+            this.render();
         }
     }
 
