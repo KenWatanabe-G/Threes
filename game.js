@@ -57,7 +57,7 @@ class ThreesGame {
         this.clientId = this.getOrCreateClientId();
 
         // プレイ回数
-        this.playCount = parseInt(localStorage.getItem('threes-play-count') || '0');
+        this.playCount = parseInt(localStorage.getItem('threes-gameover-count') || '0');
 
         this.init();
     }
@@ -635,10 +635,6 @@ class ThreesGame {
         this.usedUndo = false;
         this.usedDelete = false;
 
-        // プレイ回数をインクリメント
-        this.playCount++;
-        localStorage.setItem('threes-play-count', this.playCount.toString());
-
         // 履歴をクリア
         this.history = [];
         this.updateUndoButton();
@@ -1091,6 +1087,10 @@ class ThreesGame {
         if (this.aiMode) {
             this.toggleAI();
         }
+
+        // プレイ回数をインクリメント（ゲームオーバー時にカウント）
+        this.playCount++;
+        localStorage.setItem('threes-gameover-count', this.playCount.toString());
 
         this.finalScoreElement.textContent = this.score;
         this.gameOverElement.classList.remove('hidden');
