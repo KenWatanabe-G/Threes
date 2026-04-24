@@ -24,6 +24,11 @@
                     <span class="best-label">ベスト</span>
                     <span class="best-value" id="best">0</span>
                 </div>
+                <div class="rating">
+                    <span class="rating-label">レート</span>
+                    <span class="rating-value" id="rating">1000</span>
+                    <span class="rating-tier" id="rating-tier">ブロンズ</span>
+                </div>
             </div>
         </div>
 
@@ -103,6 +108,9 @@
             <div id="game-over" class="game-over hidden">
                 <h2>ゲームオーバー</h2>
                 <p>最終スコア: <span id="final-score">0</span></p>
+                <p class="rating-summary-line">今回の評価: <span id="play-rating">-</span></p>
+                <p class="rating-summary-line">プレイヤーレート: <span id="player-rating-summary">1000</span> <span id="rating-delta">±0</span></p>
+                <p class="rating-summary-line">最高レート: <span id="peak-rating">1000</span></p>
                 <p id="ranking-status" class="ranking-status"></p>
                 <div class="game-over-buttons">
                     <button id="restart-button" class="restart-button">もう一度</button>

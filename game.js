@@ -9,7 +9,13 @@ class ThreesGame {
         this.gameBoard = document.getElementById('game-board');
         this.scoreElement = document.getElementById('score');
         this.bestElement = document.getElementById('best');
+        this.ratingElement = document.getElementById('rating');
+        this.ratingTierElement = document.getElementById('rating-tier');
         this.finalScoreElement = document.getElementById('final-score');
+        this.playRatingElement = document.getElementById('play-rating');
+        this.playerRatingSummaryElement = document.getElementById('player-rating-summary');
+        this.ratingDeltaElement = document.getElementById('rating-delta');
+        this.peakRatingElement = document.getElementById('peak-rating');
         this.gameOverElement = document.getElementById('game-over');
         this.aiIndicatorElement = document.getElementById('ai-indicator');
         this.nextTileElement = document.getElementById('next-tile');
@@ -58,6 +64,9 @@ class ThreesGame {
 
         // プレイ回数
         this.playCount = parseInt(localStorage.getItem('threes-gameover-count') || '0');
+
+        // プレイヤースキルレーティング
+        this.skillStats = this.loadSkillStats();
 
         this.init();
     }
@@ -130,6 +139,7 @@ class ThreesGame {
         this.setupEventListeners();
         this.setupRankingEventListeners();
         this.updateBestScore();
+        this.updateRatingDisplay();
 
         // 保存されたゲーム状態があれば復元、なければ新規ゲーム開始
         // ただしゲームオーバー状態だった場合は新しいゲームを開始
@@ -629,7 +639,13 @@ class ThreesGame {
         this.nextTileId = 0;
         this.score = 0;
         this.updateScore();
+        this.updateRatingDisplay();
         this.gameOverElement.classList.add('hidden');
+
+        const rankingStatusElement = document.getElementById('ranking-status');
+        if (rankingStatusElement) {
+            rankingStatusElement.textContent = '';
+        }
 
         // ランキング用フラグをリセット
         this.usedUndo = false;
@@ -1092,7 +1108,13 @@ class ThreesGame {
         this.playCount++;
         localStorage.setItem('threes-gameover-count', this.playCount.toString());
 
+        const category = this.getRankingCategory();
+        const playRating = this.calculatePlayRating(category);
+        const ratingUpdate = this.updatePlayerRatingFromPlay(playRating, category);
+
         this.finalScoreElement.textContent = this.score;
+        this.updateRatingSummary(playRating, ratingUpdate);
+        this.updateRatingDisplay();
         this.gameOverElement.classList.remove('hidden');
 
         if (this.score > this.bestScore) {
@@ -1157,6 +1179,126 @@ class ThreesGame {
 
     updateBestScore() {
         this.bestElement.textContent = this.bestScore;
+    }
+
+    getDefaultSkillStats() {
+        return {
+            rating: 1000,
+            peakRating: 1000,
+            plays: 0,
+            lastPlayRating: null,
+            lastDelta: 0,
+            lastCategory: 'normal',
+            recentPlayRatings: []
+        };
+    }
+
+    loadSkillStats() {
+        const saved = localStorage.getItem('threes-player-skill');
+        if (!saved) {
+            return this.getDefaultSkillStats();
+        }
+
+        try {
+            const parsed = JSON.parse(saved);
+            return {
+                ...this.getDefaultSkillStats(),
+                ...parsed,
+                recentPlayRatings: Array.isArray(parsed.recentPlayRatings) ? parsed.recentPlayRatings : []
+            };
+        } catch (e) {
+            console.error('プレイヤースキルデータの読み込みに失敗しました:', e);
+            return this.getDefaultSkillStats();
+        }
+    }
+
+    saveSkillStats() {
+        localStorage.setItem('threes-player-skill', JSON.stringify(this.skillStats));
+    }
+
+    getRatingTier(rating) {
+        // 通常プレイで 384 / 768 / 1536 / 3072 到達が
+        // Silver / Gold / Platinum / Diamond の目安になるように設定
+        if (rating >= 2080) return 'ダイヤ';
+        if (rating >= 1920) return 'プラチナ';
+        if (rating >= 1760) return 'ゴールド';
+        if (rating >= 1600) return 'シルバー';
+        return 'ブロンズ';
+    }
+
+    getRatingCategoryWeight(category) {
+        if (category === 'normal') return 1.0;
+        if (category === 'with_undo') return 0.65;
+        return 0.4;
+    }
+
+    calculatePlayRating(category = this.getRankingCategory()) {
+        const scoreComponent = Math.log(this.score + 1) / Math.log(3) * 85;
+        const maxTile = Math.max(this.getMaxTileValue(), 3);
+        const maxTileStage = Math.max(0, Math.log2(maxTile / 3));
+        const maxTileComponent = maxTileStage * 75;
+
+        let playRating = 400 + scoreComponent + maxTileComponent;
+
+        if (category === 'with_undo') {
+            playRating *= 0.94;
+        } else if (category === 'anything_goes') {
+            playRating *= 0.88;
+        }
+
+        return Math.max(400, Math.round(playRating));
+    }
+
+    updatePlayerRatingFromPlay(playRating, category = this.getRankingCategory()) {
+        const previousRating = this.skillStats.rating;
+        const categoryWeight = this.getRatingCategoryWeight(category);
+        const learningRate = Math.max(0.12, 0.3 - this.skillStats.plays * 0.01) * categoryWeight;
+        const rawDelta = (playRating - previousRating) * learningRate;
+        const delta = Math.round(Math.max(-75, Math.min(75, rawDelta)));
+        const nextRating = Math.max(100, previousRating + delta);
+
+        this.skillStats.rating = nextRating;
+        this.skillStats.peakRating = Math.max(this.skillStats.peakRating, nextRating);
+        this.skillStats.plays += 1;
+        this.skillStats.lastPlayRating = playRating;
+        this.skillStats.lastDelta = delta;
+        this.skillStats.lastCategory = category;
+        this.skillStats.recentPlayRatings.push(playRating);
+        this.skillStats.recentPlayRatings = this.skillStats.recentPlayRatings.slice(-20);
+        this.saveSkillStats();
+
+        return {
+            previousRating,
+            nextRating,
+            delta
+        };
+    }
+
+    updateRatingDisplay() {
+        if (!this.ratingElement || !this.ratingTierElement) return;
+
+        this.ratingElement.textContent = this.skillStats.rating;
+        this.ratingTierElement.textContent = this.getRatingTier(this.skillStats.rating);
+    }
+
+    updateRatingSummary(playRating, ratingUpdate) {
+        if (this.playRatingElement) {
+            this.playRatingElement.textContent = `${playRating} (${this.getRatingTier(playRating)})`;
+        }
+
+        if (this.playerRatingSummaryElement) {
+            this.playerRatingSummaryElement.textContent = `${ratingUpdate.nextRating} (${this.getRatingTier(ratingUpdate.nextRating)})`;
+        }
+
+        if (this.ratingDeltaElement) {
+            const sign = ratingUpdate.delta > 0 ? '+' : '';
+            this.ratingDeltaElement.textContent = `(${sign}${ratingUpdate.delta})`;
+            this.ratingDeltaElement.style.color = ratingUpdate.delta >= 0 ? '#9fe6a0' : '#ffb3b3';
+        }
+
+        if (this.peakRatingElement) {
+            this.peakRatingElement.textContent = this.skillStats.peakRating;
+        }
     }
 
     saveState() {
@@ -1442,6 +1584,7 @@ class ThreesGame {
 
         boardText += '\n==================\n';
         boardText += `スコア: ${this.score}\n`;
+        boardText += `プレイヤーレート: ${this.skillStats.rating} (${this.getRatingTier(this.skillStats.rating)})\n`;
         boardText += `次のタイル: ${this.nextTileValue || '?'}${this.nextTileIsBonus ? '+' : ''}\n`;
 
         // クリップボードにコピー

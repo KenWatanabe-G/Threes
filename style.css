@@ -55,25 +55,38 @@ body {
     flex-shrink: 0;
 }
 
-.score, .best {
+.score, .best, .rating {
     background: #bbada0;
     padding: 8px 15px;
     border-radius: 5px;
     color: white;
 }
 
-.score-label, .best-label {
+.rating {
+    background: #6c8c78;
+    min-width: 92px;
+}
+
+.score-label, .best-label, .rating-label {
     display: block;
     font-size: clamp(0.7em, 2vw, 0.9em);
     text-transform: uppercase;
     letter-spacing: 1px;
 }
 
-.score-value, .best-value {
+.score-value, .best-value, .rating-value {
     display: block;
     font-size: clamp(1.2em, 3vw, 1.5em);
     font-weight: bold;
     margin-top: 3px;
+}
+
+.rating-tier {
+    display: block;
+    margin-top: 2px;
+    font-size: clamp(0.58em, 1.8vw, 0.72em);
+    letter-spacing: 0.08em;
+    opacity: 0.9;
 }
 
 .game-info {
@@ -507,6 +520,16 @@ body {
     margin-bottom: 30px;
 }
 
+.rating-summary-line {
+    font-size: 1.05em !important;
+    margin-bottom: 10px !important;
+}
+
+#rating-delta {
+    font-size: 0.9em;
+    font-weight: bold;
+}
+
 .restart-button {
     background: #4caf50;
     color: white;
@@ -798,15 +821,15 @@ body {
         gap: 10px;
     }
 
-    .score, .best {
+    .score, .best, .rating {
         padding: 6px 12px;
     }
 
-    .score-label, .best-label {
+    .score-label, .best-label, .rating-label {
         font-size: clamp(0.65em, 1.8vw, 0.8em);
     }
 
-    .score-value, .best-value {
+    .score-value, .best-value, .rating-value {
         font-size: clamp(1em, 2.5vw, 1.3em);
     }
 
@@ -851,15 +874,15 @@ body {
         gap: 8px;
     }
 
-    .score, .best {
+    .score, .best, .rating {
         padding: 5px 10px;
     }
 
-    .score-label, .best-label {
+    .score-label, .best-label, .rating-label {
         font-size: clamp(0.6em, 1.5vw, 0.7em);
     }
 
-    .score-value, .best-value {
+    .score-value, .best-value, .rating-value {
         font-size: clamp(0.9em, 2vw, 1.1em);
         margin-top: 2px;
     }
