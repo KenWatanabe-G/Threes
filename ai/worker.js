@@ -1,0 +1,43 @@
+// AI 計算用 Web Worker
+// メインスレッドから { board, deck, nextTileValue, nextTileIsBonus, requestId } を受け取り、
+// 最適な move 方向 ('up'|'down'|'left'|'right'|null) を返す
+
+importScripts('board.js', 'heuristic.js', 'expectimax.js');
+
+initHeurScoreTable();
+
+const MOVE_NAMES = ['up', 'down', 'left', 'right'];
+
+// nextTile の情報からブリック候補配列 (ランク値) を作る
+function buildNextBricks(nextTileValue, nextTileIsBonus, board) {
+    if (nextTileValue == null) return [];
+    const rank = valueToRank(nextTileValue);
+    if (!nextTileIsBonus) return [rank];
+
+    // ボーナスの場合、game.js のロジックに合わせて
+    // 最大タイル / 8 以下の 2 のべき乗を全列挙
+    const { max: maxRank } = maxElement(board);
+    const maxValue = rankToValue(maxRank);
+    const maxBonus = Math.floor(maxValue / 8);
+    const bricks = [];
+    for (let v = 6; v <= maxBonus; v *= 2) {
+        bricks.push(valueToRank(v));
+    }
+    return bricks.length > 0 ? bricks : [rank];
+}
+
+self.addEventListener('message', (event) => {
+    const { requestId, grid, deck, nextTileValue, nextTileIsBonus } = event.data;
+    try {
+        const board = valuesToRanks(grid);
+        const candidate = candidateFromDeck(deck);
+        const nextBricks = buildNextBricks(nextTileValue, nextTileIsBonus, board);
+
+        const moveIdx = expectSearch(board, candidate, nextBricks);
+        const move = moveIdx >= 0 ? MOVE_NAMES[moveIdx] : null;
+
+        self.postMessage({ requestId, move });
+    } catch (err) {
+        self.postMessage({ requestId, move: null, error: err.message });
+    }
+});
