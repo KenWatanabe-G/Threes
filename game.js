@@ -45,11 +45,12 @@ class ThreesGame {
         // 削除モード
         this.deleteMode = false;
 
-        // AI 自動操作
+        // AI 自動操作 (マルチ Worker root parallelism)
         this.aiMode = false;
-        this.aiWorker = null;
+        this.aiWorkers = [];     // Worker pool
+        this.aiPoolSize = 4;     // root move 4 つを並列評価
         this.aiRequestId = 0;
-        this.aiPendingRequest = null;
+        this.aiPending = null;   // { requestId, scores: number[4], received: number, moves: number[] }
         this.aiIndicatorElement = document.getElementById('ai-indicator');
 
         // ランキング用フラグ
@@ -444,13 +445,23 @@ class ThreesGame {
         this.aiIndicatorElement.classList.remove('hidden');
         this.updateUndoButton();
 
-        if (!this.aiWorker) {
-            this.aiWorker = new Worker('ai/worker.js');
-            this.aiWorker.addEventListener('message', (e) => this.handleAIMessage(e));
-            this.aiWorker.addEventListener('error', (e) => {
-                console.error('AI worker error:', e.message);
-                this.stopAI();
-            });
+        if (this.aiWorkers.length === 0) {
+            for (let i = 0; i < this.aiPoolSize; i++) {
+                let w;
+                try {
+                    w = new Worker('ai/worker.js');
+                } catch (e) {
+                    console.error('AI worker construction failed:', e.message);
+                    this.stopAI();
+                    return;
+                }
+                w.addEventListener('message', (ev) => this.handleAIMessage(ev));
+                w.addEventListener('error', (ev) => {
+                    console.error('AI worker error:', ev.message);
+                    this.stopAI();
+                });
+                this.aiWorkers.push(w);
+            }
         }
 
         this.requestAINextMove();
@@ -459,15 +470,16 @@ class ThreesGame {
     stopAI() {
         if (!this.aiMode) return;
         this.aiMode = false;
-        this.aiPendingRequest = null;
+        this.aiPending = null;
         const button = document.getElementById('ai-toggle');
         button.classList.remove('active');
         this.aiIndicatorElement.classList.add('hidden');
         this.updateUndoButton();
     }
 
+    // root move 4 つを Worker pool に fan-out
     requestAINextMove() {
-        if (!this.aiMode || !this.aiWorker) return;
+        if (!this.aiMode || this.aiWorkers.length === 0) return;
         if (this.isMoving) return;
         if (this.isGameOver()) {
             this.stopAI();
@@ -475,27 +487,57 @@ class ThreesGame {
         }
 
         const requestId = ++this.aiRequestId;
-        this.aiPendingRequest = requestId;
-        this.aiWorker.postMessage({
+        this.aiPending = {
             requestId,
-            grid: this.getValueGrid(),
-            deck: [...this.deck],
-            nextTileValue: this.nextTileValue,
-            nextTileIsBonus: this.nextTileIsBonus
-        });
+            scores: [-Infinity, -Infinity, -Infinity, -Infinity],
+            received: 0
+        };
+        const grid = this.getValueGrid();
+        const deck = [...this.deck];
+        const nextTileValue = this.nextTileValue;
+        const nextTileIsBonus = this.nextTileIsBonus;
+
+        for (let m = 0; m < 4; m++) {
+            const worker = this.aiWorkers[m % this.aiWorkers.length];
+            worker.postMessage({
+                requestId,
+                rootMove: m,
+                grid,
+                deck,
+                nextTileValue,
+                nextTileIsBonus
+            });
+        }
     }
 
     handleAIMessage(event) {
-        const { requestId, move } = event.data;
+        const { requestId, rootMove, score } = event.data;
         if (!this.aiMode) return;
-        if (requestId !== this.aiPendingRequest) return; // 古いレスポンスは破棄
-        this.aiPendingRequest = null;
+        if (!this.aiPending || requestId !== this.aiPending.requestId) return;
+        if (typeof rootMove !== 'number') return;
 
-        if (!move) {
+        this.aiPending.scores[rootMove] = score;
+        this.aiPending.received++;
+        if (this.aiPending.received < 4) return;
+
+        // 4 root すべて返ってきた。最大スコアの方向を選ぶ
+        const scores = this.aiPending.scores;
+        this.aiPending = null;
+
+        let bestScore = 0;
+        let bestMove = -1;
+        for (let m = 0; m < 4; m++) {
+            if (scores[m] > bestScore) {
+                bestScore = scores[m];
+                bestMove = m;
+            }
+        }
+        if (bestMove < 0) {
             this.stopAI();
             return;
         }
-        this.move(move);
+        const moveNames = ['up', 'down', 'left', 'right'];
+        this.move(moveNames[bestMove]);
     }
 
     // タイル ID のグリッドではなく、各セルの値 (0 = 空) のグリッドを返す
