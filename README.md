@@ -1,6 +1,8 @@
 # Threes! Game
 
-ブラウザで遊べる**Threes!**の実装です。AI自動プレイとランキング機能を搭載しています。
+ブラウザで遊べるThrees!の実装です。AI自動プレイとランキング機能を搭載しています。
+
+https://kenwatanabe-g.github.io/Threes/
 
 ## 🎮 ゲーム概要
 
