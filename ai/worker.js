@@ -27,16 +27,22 @@ function buildNextBricks(nextTileValue, nextTileIsBonus, bb) {
 }
 
 self.addEventListener('message', (event) => {
-    const { requestId, grid, deck, nextTileValue, nextTileIsBonus } = event.data;
+    const { requestId, grid, deck, nextTileValue, nextTileIsBonus, rootMove } = event.data;
     try {
         const bb = valuesToBB(grid);
         const candidate = candidateFromDeck(deck);
         const nextBricks = buildNextBricks(nextTileValue, nextTileIsBonus, bb);
 
-        const moveIdx = expectSearch(bb, candidate, nextBricks);
-        const move = moveIdx >= 0 ? MOVE_NAMES[moveIdx] : null;
-
-        self.postMessage({ requestId, move });
+        if (rootMove !== undefined && rootMove !== null) {
+            // マルチ Worker モード: 単一の root move のスコアだけ返す
+            const score = rootEvaluate(bb, candidate, nextBricks, rootMove);
+            self.postMessage({ requestId, rootMove, score });
+        } else {
+            // シングル Worker モード (フォールバック)
+            const moveIdx = expectSearch(bb, candidate, nextBricks);
+            const move = moveIdx >= 0 ? MOVE_NAMES[moveIdx] : null;
+            self.postMessage({ requestId, move });
+        }
     } catch (err) {
         self.postMessage({ requestId, move: null, error: err.message });
     }
