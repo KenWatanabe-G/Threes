@@ -10,7 +10,10 @@ const MERGES_WEIGHT = 200.0;
 const ONE_TWO_MERGES_WEIGHT = 700.0;
 const EMPTY_WEIGHT = 500.0;
 
-const CPROB_MIN = 0.0001;
+// 確率が CPROB_MIN を下回る枝は leaf eval で打ち切り。
+// halfrost オリジナルは 0.0001。0.001 へ引き上げて 1 桁分のテイル枝を刈り、
+// 棋力への寄与が < 0.1% の深い分岐を除外する。
+const CPROB_MIN = 0.001;
 const CACHE_DEPT_LEVEL = 6;
 const HIGHT_BRICK_FREQ = 21;
 
