@@ -1149,6 +1149,16 @@ body {
     color: #9b59b6;
 }
 
+.ranking-note {
+    margin: 0 0 16px 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(155, 89, 182, 0.08);
+    color: #776e65;
+    font-size: 0.9em;
+    line-height: 1.5;
+}
+
 .ranking-input-group {
     margin: 20px 0;
     text-align: left;

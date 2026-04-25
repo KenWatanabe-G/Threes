@@ -1110,7 +1110,9 @@ class ThreesGame {
 
         const category = this.getRankingCategory();
         const playRating = this.calculatePlayRating(category);
-        const ratingUpdate = this.updatePlayerRatingFromPlay(playRating, category);
+        const ratingUpdate = this.shouldUpdateRating()
+            ? this.updatePlayerRatingFromPlay(playRating, category)
+            : this.getRatingSummaryWithoutChange(playRating, category);
 
         this.finalScoreElement.textContent = this.score;
         this.updateRatingSummary(playRating, ratingUpdate);
@@ -1232,6 +1234,10 @@ class ThreesGame {
         return 0.4;
     }
 
+    shouldUpdateRating() {
+        return !this.usedUndo && !this.usedDelete;
+    }
+
     calculatePlayRating(category = this.getRankingCategory()) {
         const scoreComponent = Math.log(this.score + 1) / Math.log(3) * 85;
         const maxTile = Math.max(this.getMaxTileValue(), 3);
@@ -1274,6 +1280,17 @@ class ThreesGame {
         };
     }
 
+    getRatingSummaryWithoutChange(playRating, category = this.getRankingCategory()) {
+        return {
+            previousRating: this.skillStats.rating,
+            nextRating: this.skillStats.rating,
+            delta: 0,
+            category,
+            ratingLocked: true,
+            playRating
+        };
+    }
+
     updateRatingDisplay() {
         if (!this.ratingElement || !this.ratingTierElement) return;
 
@@ -1291,9 +1308,14 @@ class ThreesGame {
         }
 
         if (this.ratingDeltaElement) {
-            const sign = ratingUpdate.delta > 0 ? '+' : '';
-            this.ratingDeltaElement.textContent = `(${sign}${ratingUpdate.delta})`;
-            this.ratingDeltaElement.style.color = ratingUpdate.delta >= 0 ? '#9fe6a0' : '#ffb3b3';
+            if (ratingUpdate.ratingLocked) {
+                this.ratingDeltaElement.textContent = '(変動なし)';
+                this.ratingDeltaElement.style.color = '#d6d6d6';
+            } else {
+                const sign = ratingUpdate.delta > 0 ? '+' : '';
+                this.ratingDeltaElement.textContent = `(${sign}${ratingUpdate.delta})`;
+                this.ratingDeltaElement.style.color = ratingUpdate.delta >= 0 ? '#9fe6a0' : '#ffb3b3';
+            }
         }
 
         if (this.peakRatingElement) {
@@ -1379,7 +1401,7 @@ class ThreesGame {
         if (!this.usedUndo && !this.usedDelete) {
             const confirmed = await this.showConfirmDialog(
                 'ランキングカテゴリ変更',
-                'アンドゥを使用すると、ランキングカテゴリが「アンドゥあり」に変更されます。続行しますか？'
+                'アンドゥを使用すると、このプレイは通常ランキングではなく「アンドゥあり」カテゴリで記録されます。また、このプレイではプレイヤーレーティングは変動しません。続行しますか？'
             );
             if (!confirmed) return;
         }
@@ -1492,7 +1514,7 @@ class ThreesGame {
         if (!this.usedDelete) {
             const confirmed = await this.showConfirmDialog(
                 'ランキングカテゴリ変更',
-                '削除機能を使用すると、ランキングカテゴリが「なんでもあり」に変更されます。続行しますか？'
+                '削除機能を使用すると、このプレイは通常ランキングではなく「なんでもあり」カテゴリで記録されます。また、このプレイではプレイヤーレーティングは変動しません。続行しますか？'
             );
             if (!confirmed) {
                 // キャンセル時は削除モードを解除
@@ -2212,9 +2234,15 @@ class ThreesGame {
             'with_undo': 'アンドゥありランキング',
             'anything_goes': 'なんでもありランキング'
         };
+        const categoryNotes = {
+            'normal': 'このスコアは通常ランキングに登録され、プレイヤーレーティングの対象にもなります。',
+            'with_undo': 'このプレイはアンドゥを使用しているため、「アンドゥあり」ランキングに登録されます。プレイヤーレーティングは変動しません。',
+            'anything_goes': 'このプレイは削除機能を使用しているため、「なんでもあり」ランキングに登録されます。プレイヤーレーティングは変動しません。'
+        };
 
         document.getElementById('ranking-category-display').textContent = categoryNames[category];
         document.getElementById('ranking-score-display').textContent = this.score;
+        document.getElementById('ranking-category-note').textContent = categoryNotes[category];
         document.getElementById('ranking-player-name').value = this.getPlayerName();
 
         modal.classList.remove('hidden');
