@@ -1,61 +1,60 @@
 // halfrost/threes-ai ai.go の Expectimax 探索の JavaScript 移植
-// board.js / heuristic.js に依存 (Worker 内では importScripts で読み込む)
+// board.js / heuristic.js (ビットボード版) に依存
 
-// nextBricks: 次に出るブリックの候補値の配列 (例: [1], [3], [6, 12, 24])
-//   - 通常タイル: 1, 2, 3 (ランク値)
-//   - ボーナスタイル: 4以上のランク値 (6, 12, 24, ...)
+// nextBricks: 次に出るブリックの候補値 (ランク値) の配列
+//   - 通常タイル: 1, 2, 3
+//   - ボーナスタイル: 4 以上 (6, 12, 24, ...)
 // candidate: [oneCount, twoCount, threeCount] - デッキの残数
 // Returns: 0=UP, 1=DOWN, 2=LEFT, 3=RIGHT (動かせない場合は -1)
-function expectSearch(board, candidate, nextBricks) {
-    const moveScores = new Array(4).fill(-Infinity);
-    for (let move = 0; move < 4; move++) {
-        moveScores[move] = deptSearch(board, candidate, nextBricks, move);
-    }
+function expectSearch(bb, candidate, nextBricks) {
+    // ルートで 1 度だけ deptLevel を計算し、4 手で共有
+    const deptMax = deptLevel(bb);
+    // キャッシュもルート 4 手で共有 (単一スレッドなので常に有利)
+    const gameState = {
+        currentDept: 0,
+        deptMax,
+        cacheScore: new Map()
+    };
+
     let bestScore = 0;
     let bestMove = -1;
-    for (let m = 0; m < 4; m++) {
-        if (moveScores[m] > bestScore) {
-            bestScore = moveScores[m];
-            bestMove = m;
+    for (let move = 0; move < 4; move++) {
+        const sc = deptSearch(gameState, bb, candidate, nextBricks, move);
+        if (sc > bestScore) {
+            bestScore = sc;
+            bestMove = move;
         }
     }
     return bestMove;
 }
 
-function deptSearch(board, candidate, nextBricks, move) {
-    const { max: maxEle } = maxElement(board);
-    const gameState = {
-        maxElement: maxEle,
-        currentDept: 0,
-        deptMax: deptLevel(board),
-        moveCount: 0,
-        cacheScore: new Map()
-    };
-
-    const moved = makeMove(board, move);
+function deptSearch(gameState, bb, candidate, nextBricks, move) {
+    const moved = makeMove(bb, move);
     if (moved.changeNum === 0) return 0;
 
     let result = 0;
     let chance = 0;
-    for (const brick of nextBricks) {
-        let c;
-        switch (brick) {
-            case 1:
-                c = [candidate[0] - 1, candidate[1], candidate[2]];
-                result += heurSearch(gameState, moved.board, c, brick, move, moved.change, moved.changeNum, 1.0);
-                break;
-            case 2:
-                c = [candidate[0], candidate[1] - 1, candidate[2]];
-                result += heurSearch(gameState, moved.board, c, brick, move, moved.change, moved.changeNum, 1.0);
-                break;
-            case 3:
-                c = [candidate[0], candidate[1], candidate[2] - 1];
-                result += heurSearch(gameState, moved.board, c, brick, move, moved.change, moved.changeNum, 1.0);
-                break;
-            default:
-                // ボーナスブリック (4以上) はデッキ消費なし
-                result += heurSearch(gameState, moved.board, candidate, brick, move, candidate, moved.changeNum, 1.0);
-                break;
+    for (let bi = 0; bi < nextBricks.length; bi++) {
+        const brick = nextBricks[bi];
+        if (brick === 1) {
+            candidate[0]--;
+            result += heurSearch(gameState, moved.board, candidate, brick, move,
+                                  moved.change, moved.changeNum, 1.0);
+            candidate[0]++;
+        } else if (brick === 2) {
+            candidate[1]--;
+            result += heurSearch(gameState, moved.board, candidate, brick, move,
+                                  moved.change, moved.changeNum, 1.0);
+            candidate[1]++;
+        } else if (brick === 3) {
+            candidate[2]--;
+            result += heurSearch(gameState, moved.board, candidate, brick, move,
+                                  moved.change, moved.changeNum, 1.0);
+            candidate[2]++;
+        } else {
+            // ボーナスブリック (4 以上) はデッキ消費なし
+            result += heurSearch(gameState, moved.board, candidate, brick, move,
+                                  moved.change, moved.changeNum, 1.0);
         }
         chance++;
     }
@@ -63,35 +62,34 @@ function deptSearch(board, candidate, nextBricks, move) {
 }
 
 // 移動後に空いた端の各位置に nextBrickRank を挿入し、それぞれのスコアを平均
-function heurSearch(gameState, board, candidate, nextBrickRank, move, changes, changeNum, prob) {
+function heurSearch(gameState, bb, candidate, nextBrickRank, move, changes, changeNum, prob) {
     let res = 0;
     const factor = 1.0 / changeNum;
     const cprob = prob * factor;
 
     for (let changeIndex = 0; changeIndex < 4; changeIndex++) {
         if (changes[changeIndex] === 1) {
-            const newBoard = insertBrick(board, nextBrickRank, move, changeIndex);
+            const newBoard = insertBrick(bb, nextBrickRank, move, changeIndex);
             res += insertHeurSearch(gameState, newBoard, candidate, cprob);
         }
     }
     return res * factor;
 }
 
-function insertHeurSearch(gameState, board, candidate, prob) {
+function insertHeurSearch(gameState, bb, candidate, prob) {
     if (prob < CPROB_MIN || gameState.currentDept >= gameState.deptMax) {
-        return getHeurWeightScore(board);
+        return getHeurWeightScore(bb);
     }
 
-    const hash = hashBoard(board);
-    const cached = gameState.cacheScore.get(hash);
+    const key = hashBoard(bb);
+    const cached = gameState.cacheScore.get(key);
     if (cached !== undefined) return cached;
 
     let best = 0;
     gameState.currentDept++;
 
     for (let move = 0; move < 4; move++) {
-        const moved = makeMove(board, move);
-        gameState.moveCount++;
+        const moved = makeMove(bb, move);
         if (moved.changeNum !== 0) {
             const sc = recursionDeptSearch(gameState, moved.board, candidate, move,
                                            moved.change, moved.changeNum, prob);
@@ -100,23 +98,24 @@ function insertHeurSearch(gameState, board, candidate, prob) {
     }
 
     gameState.currentDept--;
-    gameState.cacheScore.set(hash, best);
+    gameState.cacheScore.set(key, best);
     return best;
 }
 
-function recursionDeptSearch(gameState, board, candidate, move, changes, changeNum, prob) {
+function recursionDeptSearch(gameState, bb, candidate, move, changes, changeNum, prob) {
     let res = 0;
-    const { max: maxEle } = maxElement(board);
-    gameState.maxElement = maxEle;
+    const maxEle = maxValue(bb);
 
-    let cand = candidate;
-    if (cand[0] === 0 && cand[1] === 0 && cand[2] === 0) {
-        cand = [4, 4, 4];
+    // 元の Go 実装と同じセマンティクス: 全部 0 のときは [4,4,4] とみなす
+    let oneNum = candidate[0];
+    let twoNum = candidate[1];
+    let threeNum = candidate[2];
+    let restored = false;
+    if (oneNum === 0 && twoNum === 0 && threeNum === 0) {
+        candidate[0] = 4; candidate[1] = 4; candidate[2] = 4;
+        oneNum = 4; twoNum = 4; threeNum = 4;
+        restored = true;
     }
-
-    const oneNum = cand[0];
-    const twoNum = cand[1];
-    const threeNum = cand[2];
 
     let total = oneNum + twoNum + threeNum;
     let hres = 0;
@@ -124,7 +123,7 @@ function recursionDeptSearch(gameState, board, candidate, move, changes, changeN
     if (maxEle >= 7) {
         const chance = maxEle - 6;
         for (let i = 0; i < chance; i++) {
-            hres += heurSearch(gameState, board, cand, i + 4, move, changes, changeNum,
+            hres += heurSearch(gameState, bb, candidate, i + 4, move, changes, changeNum,
                               prob / chance / HIGHT_BRICK_FREQ);
         }
         hres /= chance * HIGHT_BRICK_FREQ;
@@ -132,19 +131,26 @@ function recursionDeptSearch(gameState, board, candidate, move, changes, changeN
     }
 
     if (oneNum !== 0) {
-        const c = [cand[0] - 1, cand[1], cand[2]];
-        res += heurSearch(gameState, board, c, 1, move, changes, changeNum,
+        candidate[0]--;
+        res += heurSearch(gameState, bb, candidate, 1, move, changes, changeNum,
                           prob / total * oneNum) * oneNum;
+        candidate[0]++;
     }
     if (twoNum !== 0) {
-        const c = [cand[0], cand[1] - 1, cand[2]];
-        res += heurSearch(gameState, board, c, 2, move, changes, changeNum,
+        candidate[1]--;
+        res += heurSearch(gameState, bb, candidate, 2, move, changes, changeNum,
                           prob / total * twoNum) * twoNum;
+        candidate[1]++;
     }
     if (threeNum !== 0) {
-        const c = [cand[0], cand[1], cand[2] - 1];
-        res += heurSearch(gameState, board, c, 3, move, changes, changeNum,
+        candidate[2]--;
+        res += heurSearch(gameState, bb, candidate, 3, move, changes, changeNum,
                           prob / total * threeNum) * threeNum;
+        candidate[2]++;
+    }
+
+    if (restored) {
+        candidate[0] = 0; candidate[1] = 0; candidate[2] = 0;
     }
 
     res /= total;
@@ -153,10 +159,10 @@ function recursionDeptSearch(gameState, board, candidate, move, changes, changeN
 }
 
 // 異なるタイル種類数 + 最大タイル位置と分散から動的に深さを決める
-function deptLevel(board) {
-    let dept = Math.max(3, findDiffCount(board) - 2);
-    const { max: maxE, row: mi, col: mj } = maxElement(board);
-    const qua = calculateVariance(board, mi, mj);
+function deptLevel(bb) {
+    let dept = Math.max(3, findDiffCount(bb) - 2);
+    const { max: maxE, row: mi, col: mj } = maxElement(bb);
+    const qua = calculateVariance(bb, mi, mj);
     if (maxE - qua <= 4 && maxE >= 9) dept += 2;
     return dept;
 }

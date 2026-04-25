@@ -1,5 +1,5 @@
-// halfrost/threes-ai utils.go の評価関数の JavaScript 移植
-// 1行 (4セル × 各4bit) の状態 0..65535 ごとにスコアを事前計算する
+// halfrost/threes-ai utils.go の評価関数の JavaScript 移植 (ビットボード版)
+// 1 行 (4 セル × 各 4bit) の状態 0..65535 ごとにスコアを事前計算する
 
 const LOST_PENALTY_WEIGHT = 10000.0;
 const MONOTONICITY_POWER_WEIGHT = 2.0;
@@ -19,12 +19,12 @@ let scoreTableInitialized = false;
 
 function initHeurScoreTable() {
     if (scoreTableInitialized) return;
-    const line = [0, 0, 0, 0];
     for (let row = 0; row < 65536; row++) {
-        line[0] = (row >> 0) & 0xf;
-        line[1] = (row >> 4) & 0xf;
-        line[2] = (row >> 8) & 0xf;
-        line[3] = (row >> 12) & 0xf;
+        const c0 = (row >> 0) & 0xf;
+        const c1 = (row >> 4) & 0xf;
+        const c2 = (row >> 8) & 0xf;
+        const c3 = (row >> 12) & 0xf;
+        const line = [c0, c1, c2, c3];
 
         let sum = 0;
         let empty = 0;
@@ -80,39 +80,39 @@ function initHeurScoreTable() {
     scoreTableInitialized = true;
 }
 
-// 行 + 列の各ラインのスコアを合算
-function getHeurWeightScore(board) {
-    let res = 0;
-    // 行
-    for (let i = 0; i < 4; i++) {
-        let stream = 0;
-        for (let j = 3; j >= 0; j--) {
-            stream += board[i][j] << (j * 4);
-        }
-        res += heurScoreTable[stream & 0xffff];
-    }
-    // 列
-    for (let j = 0; j < 4; j++) {
-        let stream = 0;
-        for (let i = 3; i >= 0; i--) {
-            stream += board[i][j] << (i * 4);
-        }
-        res += heurScoreTable[stream & 0xffff];
-    }
+// ビットボード (Uint16Array(4)) を行と列のスコアに分解して合算
+function getHeurWeightScore(bb) {
+    // 行は packed value をそのまま参照
+    let res = heurScoreTable[bb[0]] + heurScoreTable[bb[1]] +
+              heurScoreTable[bb[2]] + heurScoreTable[bb[3]];
+    // 列を packed value に組み直してテーブル参照
+    const r0 = bb[0], r1 = bb[1], r2 = bb[2], r3 = bb[3];
+    const col0 = ((r0 >> 0) & 0xf)
+               | (((r1 >> 0) & 0xf) << 4)
+               | (((r2 >> 0) & 0xf) << 8)
+               | (((r3 >> 0) & 0xf) << 12);
+    const col1 = ((r0 >> 4) & 0xf)
+               | (((r1 >> 4) & 0xf) << 4)
+               | (((r2 >> 4) & 0xf) << 8)
+               | (((r3 >> 4) & 0xf) << 12);
+    const col2 = ((r0 >> 8) & 0xf)
+               | (((r1 >> 8) & 0xf) << 4)
+               | (((r2 >> 8) & 0xf) << 8)
+               | (((r3 >> 8) & 0xf) << 12);
+    const col3 = ((r0 >> 12) & 0xf)
+               | (((r1 >> 12) & 0xf) << 4)
+               | (((r2 >> 12) & 0xf) << 8)
+               | (((r3 >> 12) & 0xf) << 12);
+    res += heurScoreTable[col0] + heurScoreTable[col1] +
+           heurScoreTable[col2] + heurScoreTable[col3];
     return res;
 }
 
-// 盤面 (4x4 のランク) を 64bit ハッシュへ
-// JavaScript の Number は 53bit 精度なので BigInt を使う
-function hashBoard(board) {
-    let hash = 0n;
-    for (let i = 3; i >= 0; i--) {
-        for (let j = 3; j >= 0; j--) {
-            const shift = BigInt((i * 4 + j) * 4);
-            hash += BigInt(board[i][j] & 0xf) << shift;
-        }
-    }
-    return hash;
+// 盤面 (4 行 × 16bit) を 4 文字の文字列キーへ。
+// String.fromCharCode は 16bit code unit を保持するため衝突なし。
+// V8 の Map は短い文字列キーを高速に扱える。
+function hashBoard(bb) {
+    return String.fromCharCode(bb[0], bb[1], bb[2], bb[3]);
 }
 
 if (typeof module !== 'undefined' && module.exports) {

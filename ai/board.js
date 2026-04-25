@@ -1,5 +1,10 @@
-// halfrost/threes-ai gameboard.go の JavaScript 移植
-// 盤面はランク表現 (0-15) で扱う:
+// halfrost/threes-ai gameboard.go の JavaScript 移植 (ビットボード版)
+//
+// 盤面表現: Uint16Array(4)
+//   各要素 = 1 行 (4 セル × 各 4bit)。低位 nibble がカラム 0、高位 nibble がカラム 3。
+//   例: row = c0 | (c1 << 4) | (c2 << 8) | (c3 << 12)
+//
+// セル値はランク (0..15):
 //   0=空, 1=1, 2=2, 3=3, 4=6, 5=12, 6=24, 7=48, 8=96, 9=192,
 //   10=384, 11=768, 12=1536, 13=3072, 14=6144, 15=12288
 
@@ -24,218 +29,286 @@ function rankToValue(rank) {
     return VALUE_MAP[rank] ?? 0;
 }
 
-function cloneBoard(board) {
+// game.js の生値グリッド (4x4) → ビットボード Uint16Array(4)
+function valuesToBB(grid) {
+    const bb = new Uint16Array(4);
+    for (let i = 0; i < 4; i++) {
+        const r = grid[i] || [];
+        let row = 0;
+        for (let j = 0; j < 4; j++) {
+            const rank = valueToRank(r[j] ?? 0);
+            row |= (rank & 0xf) << (j * 4);
+        }
+        bb[i] = row;
+    }
+    return bb;
+}
+
+// 旧 API 互換: タイル値の 2D 配列 → ランクの 2D 配列 (テスト用に維持)
+function valuesToRanks(grid) {
     const out = new Array(BOARD_HEIGHT);
     for (let i = 0; i < BOARD_HEIGHT; i++) {
-        out[i] = board[i].slice();
+        out[i] = new Array(BOARD_WIDTH);
+        for (let j = 0; j < BOARD_WIDTH; j++) {
+            out[i][j] = valueToRank(grid[i]?.[j] ?? 0);
+        }
+    }
+    return out;
+}
+
+function cloneBB(bb) {
+    const out = new Uint16Array(4);
+    out[0] = bb[0]; out[1] = bb[1]; out[2] = bb[2]; out[3] = bb[3];
+    return out;
+}
+
+// セル単位アクセサ
+function getCell(bb, i, j) {
+    return (bb[i] >> (j * 4)) & 0xf;
+}
+
+function setCell(bb, i, j, rank) {
+    const shift = j * 4;
+    bb[i] = (bb[i] & ~(0xf << shift)) | ((rank & 0xf) << shift);
+}
+
+// 1 行 (16 bit) の左方向 1 ステップスライド結果
+//   gameboard.go の MakeMove case 2 (LEFT) を 1 行に閉じた処理として再現:
+//   - 左から右へ y=0..2 を走査
+//   - 空きセルは右から詰める
+//   - 1+2 / 2+1 → 3
+//   - 3 以上の同値 → +1 (15 で頭打ち)
+//   - 1 ステップ進んだら break、残りを詰めて行末に 0
+function slideRowLeft(row) {
+    const c = [
+        (row >> 0) & 0xf,
+        (row >> 4) & 0xf,
+        (row >> 8) & 0xf,
+        (row >> 12) & 0xf
+    ];
+    let isChange = false;
+    for (let y = 0; y < 3; y++) {
+        if (c[y] === 0) {
+            if (c[y + 1] !== 0) {
+                isChange = true;
+            }
+            c[y] = c[y + 1];
+            c[y + 1] = 0;
+        } else if (
+            (c[y] === 1 && c[y + 1] === 2) ||
+            (c[y] === 2 && c[y + 1] === 1)
+        ) {
+            c[y] = 3;
+            isChange = true;
+        } else if (c[y] === c[y + 1] && c[y] >= 3) {
+            if (c[y] !== 15) c[y]++;
+            isChange = true;
+        }
+        if (isChange) {
+            // 残りを左へ 1 つずつシフト
+            for (let j = y + 1; j < 3; j++) c[j] = c[j + 1];
+            c[3] = 0;
+            break;
+        }
+    }
+    const newRow = c[0] | (c[1] << 4) | (c[2] << 8) | (c[3] << 12);
+    return { row: newRow, changed: isChange };
+}
+
+function slideRowRight(row) {
+    const c = [
+        (row >> 0) & 0xf,
+        (row >> 4) & 0xf,
+        (row >> 8) & 0xf,
+        (row >> 12) & 0xf
+    ];
+    let isChange = false;
+    for (let y = 3; y > 0; y--) {
+        if (c[y] === 0) {
+            if (c[y - 1] !== 0) {
+                isChange = true;
+            }
+            c[y] = c[y - 1];
+            c[y - 1] = 0;
+        } else if (
+            (c[y] === 1 && c[y - 1] === 2) ||
+            (c[y] === 2 && c[y - 1] === 1)
+        ) {
+            c[y] = 3;
+            isChange = true;
+        } else if (c[y] === c[y - 1] && c[y] >= 3) {
+            if (c[y] !== 15) c[y]++;
+            isChange = true;
+        }
+        if (isChange) {
+            for (let j = y - 1; j > 0; j--) c[j] = c[j - 1];
+            c[0] = 0;
+            break;
+        }
+    }
+    const newRow = c[0] | (c[1] << 4) | (c[2] << 8) | (c[3] << 12);
+    return { row: newRow, changed: isChange };
+}
+
+// 65536 エントリの事前計算テーブル
+const ROW_LEFT = new Uint16Array(65536);
+const ROW_LEFT_CHG = new Uint8Array(65536);
+const ROW_RIGHT = new Uint16Array(65536);
+const ROW_RIGHT_CHG = new Uint8Array(65536);
+let moveTablesReady = false;
+
+function initMoveTables() {
+    if (moveTablesReady) return;
+    for (let r = 0; r < 65536; r++) {
+        const l = slideRowLeft(r);
+        ROW_LEFT[r] = l.row;
+        ROW_LEFT_CHG[r] = l.changed ? 1 : 0;
+        const rr = slideRowRight(r);
+        ROW_RIGHT[r] = rr.row;
+        ROW_RIGHT_CHG[r] = rr.changed ? 1 : 0;
+    }
+    moveTablesReady = true;
+}
+
+// 4 行を列方向に転置: row i のカラム j → 出力 row j のカラム i
+// すなわち各 nibble の (i, j) と (j, i) を入れ替え
+function transpose(bb) {
+    const out = new Uint16Array(4);
+    for (let i = 0; i < 4; i++) {
+        const r = bb[i];
+        const c0 = (r >> 0) & 0xf;
+        const c1 = (r >> 4) & 0xf;
+        const c2 = (r >> 8) & 0xf;
+        const c3 = (r >> 12) & 0xf;
+        out[0] |= c0 << (i * 4);
+        out[1] |= c1 << (i * 4);
+        out[2] |= c2 << (i * 4);
+        out[3] |= c3 << (i * 4);
     }
     return out;
 }
 
 // move: 0=UP, 1=DOWN, 2=LEFT, 3=RIGHT
-// Returns { board, change[4], num }: change[i] === 1 means line i had a movement
-//   - UP/DOWN: line index = column y
-//   - LEFT/RIGHT: line index = row x
-function makeMove(board, move) {
-    const newBoard = cloneBoard(board);
-    const change = [0, 0, 0, 0];
+//
+// 戻り値: { board: Uint16Array(4), change: Uint8Array(4), changeNum }
+//   change[i] === 1 はライン i が動いたことを示す:
+//     - UP/DOWN: ライン index = 列 index (旧 API と互換: change[y])
+//     - LEFT/RIGHT: ライン index = 行 index
+//
+// UP/DOWN は「列を抽出 → ROW_LEFT/RIGHT 参照 → 結果列を新しい行表現に書き戻す」
+// を 1 回の Uint16Array(4) 確保で行う (旧 transpose+slide+transpose の 3 確保を排除)
+function makeMove(bb, move) {
+    const change = new Uint8Array(4);
     let changeNum = 0;
-    let isChange;
+    const out = new Uint16Array(4);
 
-    switch (move) {
-        case 0: // UP
-            for (let y = 0; y < 4; y++) {
-                isChange = false;
-                for (let x = 0; x < 3; x++) {
-                    if (newBoard[x][y] === 0) {
-                        if (newBoard[x + 1][y] !== 0) {
-                            changeNum++;
-                            change[y] = 1;
-                            isChange = true;
-                        }
-                        newBoard[x][y] = newBoard[x + 1][y];
-                        newBoard[x + 1][y] = 0;
-                    } else if (
-                        (newBoard[x][y] === 1 && newBoard[x + 1][y] === 2) ||
-                        (newBoard[x][y] === 2 && newBoard[x + 1][y] === 1)
-                    ) {
-                        newBoard[x][y] = 3;
-                        changeNum++;
-                        change[y] = 1;
-                        isChange = true;
-                    } else if (newBoard[x][y] === newBoard[x + 1][y] && newBoard[x][y] >= 3) {
-                        if (newBoard[x][y] !== 15) newBoard[x][y]++;
-                        changeNum++;
-                        change[y] = 1;
-                        isChange = true;
-                    }
-                    if (isChange) {
-                        for (let j = x + 1; j < 3; j++) {
-                            newBoard[j][y] = newBoard[j + 1][y];
-                        }
-                        newBoard[3][y] = 0;
-                        break;
-                    }
-                }
+    if (move === 2) { // LEFT
+        for (let i = 0; i < 4; i++) {
+            const r = bb[i];
+            out[i] = ROW_LEFT[r];
+            if (ROW_LEFT_CHG[r]) {
+                change[i] = 1;
+                changeNum++;
             }
-            break;
-        case 1: // DOWN
-            for (let y = 0; y < 4; y++) {
-                isChange = false;
-                for (let x = 3; x > 0; x--) {
-                    if (newBoard[x][y] === 0) {
-                        if (newBoard[x - 1][y] !== 0) {
-                            changeNum++;
-                            change[y] = 1;
-                            isChange = true;
-                        }
-                        newBoard[x][y] = newBoard[x - 1][y];
-                        newBoard[x - 1][y] = 0;
-                    } else if (
-                        (newBoard[x][y] === 1 && newBoard[x - 1][y] === 2) ||
-                        (newBoard[x][y] === 2 && newBoard[x - 1][y] === 1)
-                    ) {
-                        newBoard[x][y] = 3;
-                        changeNum++;
-                        change[y] = 1;
-                        isChange = true;
-                    } else if (newBoard[x][y] === newBoard[x - 1][y] && newBoard[x][y] >= 3) {
-                        if (newBoard[x][y] !== 15) newBoard[x][y]++;
-                        changeNum++;
-                        change[y] = 1;
-                        isChange = true;
-                    }
-                    if (isChange) {
-                        for (let j = x - 1; j > 0; j--) {
-                            newBoard[j][y] = newBoard[j - 1][y];
-                        }
-                        newBoard[0][y] = 0;
-                        break;
-                    }
-                }
+        }
+        return { board: out, change, changeNum };
+    }
+    if (move === 3) { // RIGHT
+        for (let i = 0; i < 4; i++) {
+            const r = bb[i];
+            out[i] = ROW_RIGHT[r];
+            if (ROW_RIGHT_CHG[r]) {
+                change[i] = 1;
+                changeNum++;
             }
-            break;
-        case 2: // LEFT
-            for (let x = 0; x < 4; x++) {
-                isChange = false;
-                for (let y = 0; y < 3; y++) {
-                    if (newBoard[x][y] === 0) {
-                        if (newBoard[x][y + 1] !== 0) {
-                            changeNum++;
-                            change[x] = 1;
-                            isChange = true;
-                        }
-                        newBoard[x][y] = newBoard[x][y + 1];
-                        newBoard[x][y + 1] = 0;
-                    } else if (
-                        (newBoard[x][y] === 1 && newBoard[x][y + 1] === 2) ||
-                        (newBoard[x][y] === 2 && newBoard[x][y + 1] === 1)
-                    ) {
-                        newBoard[x][y] = 3;
-                        changeNum++;
-                        change[x] = 1;
-                        isChange = true;
-                    } else if (newBoard[x][y] === newBoard[x][y + 1] && newBoard[x][y] >= 3) {
-                        if (newBoard[x][y] !== 15) newBoard[x][y]++;
-                        changeNum++;
-                        change[x] = 1;
-                        isChange = true;
-                    }
-                    if (isChange) {
-                        for (let j = y + 1; j < 3; j++) {
-                            newBoard[x][j] = newBoard[x][j + 1];
-                        }
-                        newBoard[x][3] = 0;
-                        break;
-                    }
-                }
-            }
-            break;
-        case 3: // RIGHT
-            for (let x = 0; x < 4; x++) {
-                isChange = false;
-                for (let y = 3; y > 0; y--) {
-                    if (newBoard[x][y] === 0) {
-                        if (newBoard[x][y - 1] !== 0) {
-                            changeNum++;
-                            change[x] = 1;
-                            isChange = true;
-                        }
-                        newBoard[x][y] = newBoard[x][y - 1];
-                        newBoard[x][y - 1] = 0;
-                    } else if (
-                        (newBoard[x][y] === 1 && newBoard[x][y - 1] === 2) ||
-                        (newBoard[x][y] === 2 && newBoard[x][y - 1] === 1)
-                    ) {
-                        newBoard[x][y] = 3;
-                        changeNum++;
-                        change[x] = 1;
-                        isChange = true;
-                    } else if (newBoard[x][y] === newBoard[x][y - 1] && newBoard[x][y] >= 3) {
-                        if (newBoard[x][y] !== 15) newBoard[x][y]++;
-                        changeNum++;
-                        change[x] = 1;
-                        isChange = true;
-                    }
-                    if (isChange) {
-                        for (let j = y - 1; j > 0; j--) {
-                            newBoard[x][j] = newBoard[x][j - 1];
-                        }
-                        newBoard[x][0] = 0;
-                        break;
-                    }
-                }
-            }
-            break;
+        }
+        return { board: out, change, changeNum };
     }
 
-    return { board: newBoard, change, changeNum };
+    // UP / DOWN: 各列 j を packed 16bit (低位 nibble = row 0) に組み立て、
+    // ROW_LEFT (UP の場合) / ROW_RIGHT (DOWN の場合) を参照、結果列を out へ書き戻す
+    const r0 = bb[0], r1 = bb[1], r2 = bb[2], r3 = bb[3];
+    const TBL = (move === 0) ? ROW_LEFT : ROW_RIGHT;
+    const TBL_CHG = (move === 0) ? ROW_LEFT_CHG : ROW_RIGHT_CHG;
+    for (let j = 0; j < 4; j++) {
+        const sh = j * 4;
+        const col = ((r0 >> sh) & 0xf)
+                  | (((r1 >> sh) & 0xf) << 4)
+                  | (((r2 >> sh) & 0xf) << 8)
+                  | (((r3 >> sh) & 0xf) << 12);
+        const newCol = TBL[col];
+        if (TBL_CHG[col]) {
+            change[j] = 1;
+            changeNum++;
+        }
+        out[0] |= ((newCol >> 0) & 0xf) << sh;
+        out[1] |= ((newCol >> 4) & 0xf) << sh;
+        out[2] |= ((newCol >> 8) & 0xf) << sh;
+        out[3] |= ((newCol >> 12) & 0xf) << sh;
+    }
+    return { board: out, change, changeNum };
 }
 
 // 移動方向に応じて、changeLine の位置 (新しく空いた端) にブリックを挿入
-function insertBrick(board, nextBrickRank, move, changeLine) {
-    const newBoard = cloneBoard(board);
+function insertBrick(bb, nextBrickRank, move, changeLine) {
+    const out = cloneBB(bb);
     switch (move) {
-        case 0: newBoard[3][changeLine] = nextBrickRank; break;
-        case 1: newBoard[0][changeLine] = nextBrickRank; break;
-        case 2: newBoard[changeLine][3] = nextBrickRank; break;
-        case 3: newBoard[changeLine][0] = nextBrickRank; break;
+        case 0: setCell(out, 3, changeLine, nextBrickRank); break; // UP → 下端
+        case 1: setCell(out, 0, changeLine, nextBrickRank); break; // DOWN → 上端
+        case 2: setCell(out, changeLine, 3, nextBrickRank); break; // LEFT → 右端
+        case 3: setCell(out, changeLine, 0, nextBrickRank); break; // RIGHT → 左端
     }
-    return newBoard;
+    return out;
 }
 
-function maxElement(board) {
-    let max = 0;
-    let row = 0;
-    let col = 0;
-    for (let i = 0; i < BOARD_HEIGHT; i++) {
-        for (let j = 0; j < BOARD_WIDTH; j++) {
-            if (board[i][j] > max) {
-                max = board[i][j];
-                row = i;
-                col = j;
-            }
+function maxElement(bb) {
+    let max = 0, row = 0, col = 0;
+    for (let i = 0; i < 4; i++) {
+        const r = bb[i];
+        for (let j = 0; j < 4; j++) {
+            const v = (r >> (j * 4)) & 0xf;
+            if (v > max) { max = v; row = i; col = j; }
         }
     }
     return { max, row, col };
 }
 
+// 最大値だけが欲しい場合のホットパス用 (オブジェクト確保なし)
+function maxValue(bb) {
+    let max = 0;
+    for (let i = 0; i < 4; i++) {
+        const r = bb[i];
+        const v0 = (r >> 0) & 0xf;
+        const v1 = (r >> 4) & 0xf;
+        const v2 = (r >> 8) & 0xf;
+        const v3 = (r >> 12) & 0xf;
+        if (v0 > max) max = v0;
+        if (v1 > max) max = v1;
+        if (v2 > max) max = v2;
+        if (v3 > max) max = v3;
+    }
+    return max;
+}
+
 // 0,1,2 を除いた distinct な値の数
-function findDiffCount(board) {
-    const seen = new Array(16).fill(0);
-    for (let i = 0; i < BOARD_HEIGHT; i++) {
-        for (let j = 0; j < BOARD_WIDTH; j++) {
-            const v = board[i][j];
-            if (v > 2) seen[v] = 1;
+function findDiffCount(bb) {
+    let mask = 0;
+    for (let i = 0; i < 4; i++) {
+        const r = bb[i];
+        for (let j = 0; j < 4; j++) {
+            const v = (r >> (j * 4)) & 0xf;
+            if (v > 2) mask |= 1 << v;
         }
     }
+    // population count of 16-bit mask
     let count = 0;
-    for (let i = 0; i < 16; i++) if (seen[i]) count++;
+    while (mask) { count += mask & 1; mask >>>= 1; }
     return count;
 }
 
 // 最大タイルがある象限と、その対角象限の値で分散を計算
-function calculateVariance(board, maxIndexI, maxIndexJ) {
+// (旧実装と同じ式: sqrt(sqrt(sum / (2n-1))) を ceil)
+function calculateVariance(bb, maxIndexI, maxIndexJ) {
     let quadrant = -1;
     if (maxIndexI < BOARD_HEIGHT / 2 && maxIndexJ < BOARD_WIDTH / 2) quadrant = 0;
     else if (maxIndexI < BOARD_HEIGHT / 2 && maxIndexJ > BOARD_WIDTH / 2) quadrant = 1;
@@ -243,19 +316,19 @@ function calculateVariance(board, maxIndexI, maxIndexJ) {
     else if (maxIndexI > BOARD_HEIGHT / 2 && maxIndexJ > BOARD_WIDTH / 2) quadrant = 3;
     if (quadrant < 0) return 0;
 
-    const quad = [];
-    const requad = [];
     const ranges = [
-        [0, BOARD_HEIGHT / 2, 0, BOARD_WIDTH / 2],
-        [0, BOARD_HEIGHT / 2, BOARD_WIDTH / 2, BOARD_WIDTH],
-        [BOARD_HEIGHT / 2, BOARD_HEIGHT, 0, BOARD_WIDTH / 2],
-        [BOARD_HEIGHT / 2, BOARD_HEIGHT, BOARD_WIDTH / 2, BOARD_WIDTH]
+        [0, 2, 0, 2],
+        [0, 2, 2, 4],
+        [2, 4, 0, 2],
+        [2, 4, 2, 4]
     ];
     const [iStart, iEnd, jStart, jEnd] = ranges[quadrant];
+    const quad = [];
+    const requad = [];
     for (let i = iStart; i < iEnd; i++) {
         for (let j = jStart; j < jEnd; j++) {
-            quad.push(board[i][j]);
-            requad.push(board[BOARD_HEIGHT - 1 - i][BOARD_WIDTH - 1 - j]);
+            quad.push(getCell(bb, i, j));
+            requad.push(getCell(bb, BOARD_HEIGHT - 1 - i, BOARD_WIDTH - 1 - j));
         }
     }
 
@@ -281,23 +354,16 @@ function candidateFromDeck(deck) {
     return [one, two, three];
 }
 
-// game.js のグリッド (タイル値の2D配列) → ランク表現の2D配列
-function valuesToRanks(grid) {
-    const out = new Array(BOARD_HEIGHT);
-    for (let i = 0; i < BOARD_HEIGHT; i++) {
-        out[i] = new Array(BOARD_WIDTH);
-        for (let j = 0; j < BOARD_WIDTH; j++) {
-            out[i][j] = valueToRank(grid[i][j] ?? 0);
-        }
-    }
-    return out;
-}
+// 起動時にテーブル初期化
+initMoveTables();
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         BOARD_WIDTH, BOARD_HEIGHT, VALUE_MAP, RE_VALUE_MAP,
-        valueToRank, rankToValue, cloneBoard,
-        makeMove, insertBrick, maxElement, findDiffCount, calculateVariance,
-        candidateFromDeck, valuesToRanks
+        valueToRank, rankToValue,
+        valuesToBB, valuesToRanks, cloneBB, getCell, setCell,
+        makeMove, insertBrick, maxElement, maxValue, findDiffCount, calculateVariance,
+        candidateFromDeck, transpose, initMoveTables,
+        ROW_LEFT, ROW_LEFT_CHG, ROW_RIGHT, ROW_RIGHT_CHG
     };
 }
