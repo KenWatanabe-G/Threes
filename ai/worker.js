@@ -9,14 +9,14 @@ initHeurScoreTable();
 const MOVE_NAMES = ['up', 'down', 'left', 'right'];
 
 // nextTile の情報からブリック候補配列 (ランク値) を作る
-function buildNextBricks(nextTileValue, nextTileIsBonus, board) {
+function buildNextBricks(nextTileValue, nextTileIsBonus, bb) {
     if (nextTileValue == null) return [];
     const rank = valueToRank(nextTileValue);
     if (!nextTileIsBonus) return [rank];
 
     // ボーナスの場合、game.js のロジックに合わせて
     // 最大タイル / 8 以下の 2 のべき乗を全列挙
-    const { max: maxRank } = maxElement(board);
+    const { max: maxRank } = maxElement(bb);
     const maxValue = rankToValue(maxRank);
     const maxBonus = Math.floor(maxValue / 8);
     const bricks = [];
@@ -29,11 +29,11 @@ function buildNextBricks(nextTileValue, nextTileIsBonus, board) {
 self.addEventListener('message', (event) => {
     const { requestId, grid, deck, nextTileValue, nextTileIsBonus } = event.data;
     try {
-        const board = valuesToRanks(grid);
+        const bb = valuesToBB(grid);
         const candidate = candidateFromDeck(deck);
-        const nextBricks = buildNextBricks(nextTileValue, nextTileIsBonus, board);
+        const nextBricks = buildNextBricks(nextTileValue, nextTileIsBonus, bb);
 
-        const moveIdx = expectSearch(board, candidate, nextBricks);
+        const moveIdx = expectSearch(bb, candidate, nextBricks);
         const move = moveIdx >= 0 ? MOVE_NAMES[moveIdx] : null;
 
         self.postMessage({ requestId, move });
