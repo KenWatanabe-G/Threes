@@ -9,21 +9,15 @@
 ```
 ┌─────────────────────────────────────────────────┐
 │                  index.html                     │
-│  (UI構造、ゲーム盤、AI分析パネル)                │
+│  (UI構造、ゲーム盤)                              │
 └─────────────────────────────────────────────────┘
                       │
-        ┌─────────────┴─────────────┐
-        │                           │
-┌───────▼────────┐         ┌────────▼────────┐
-│   game.js      │────────▶│     ai.js       │
-│ (ゲームロジック)│         │  (AI実装)       │
-└────────────────┘         └─────────────────┘
-        │
-        │
-┌───────▼────────┐
-│   style.css    │
-│  (スタイル)     │
-└────────────────┘
+              ┌───────┴───────┐
+              │               │
+       ┌──────▼──────┐  ┌─────▼──────┐
+       │  game.js    │  │  style.css │
+       │(ゲームロジック)│  │  (スタイル) │
+       └─────────────┘  └────────────┘
 ```
 
 ### ファイル別責務
@@ -37,22 +31,11 @@
 - Undo機能（履歴管理）
 - UI更新とイベント処理
 - ドラッグ＆スワイプ処理
-- AI分析パネル制御
-
-#### `ai.js` - AI機能
-- **ThreesAIクラス**: AI戦略と評価
-- Expectimaxアルゴリズム実装
-- 評価関数（6つの評価軸）
-- 移動シミュレーション
-- 確率計算（デッキカウンティング）
-- トランスポジションテーブル（キャッシュ）
-- 重み管理（localStorage連携）
 
 #### `style.css` - スタイリング
-- PC向けサイドバイサイドレイアウト
+- PC向けレイアウト
 - タイルのカラースキーム
 - アニメーション定義
-- AI分析パネルのスタイル
 - レスポンシブ対応（簡易版）
 
 ---
@@ -80,7 +63,6 @@ deck = [
 **戦略的意味:**
 - 出現確率は各1/3で均等
 - 例：1が4枚連続で出たら、次のデッキまで1は出ない
-- AIはデッキの残り枚数を計算して確率を推定可能
 
 ### ボーナスカードシステム
 
@@ -172,202 +154,6 @@ saveState() {
 
 ---
 
-## 🤖 AI実装詳細
-
-> **詳細なAI戦略設計については[AI_STRATEGY.md](AI_STRATEGY.md)を参照してください。**
-
-### Expectimaxアルゴリズム
-
-**探索木構造:**
-```
-         Max Node (プレイヤー)
-         /    |    |    \
-      上    下   左   右
-       |     |    |     |
-    Chance Node (ランダム)
-     /  |  \
-   1   2   3  (確率的に分岐)
-    |   |   |
-   Max Node ...
-```
-
-**実装:**
-```javascript
-getBestMove() {
-  const depth = 3; // 探索深度
-  const directions = ['up', 'down', 'left', 'right'];
-  let bestScore = -Infinity;
-  let bestMove = null;
-
-  directions.forEach(direction => {
-    if (!this.canMoveInDirection(direction)) return;
-
-    const simResult = this.simulateMove(direction);
-    if (!simResult) return;
-
-    // Chanceノードで期待値を計算
-    const score = this.expectimaxChance(
-      simResult.grid,
-      simResult.tiles,
-      depth - 1
-    );
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestMove = direction;
-    }
-  });
-
-  return bestMove;
-}
-```
-
-### 評価関数
-
-**6つの評価軸:**
-
-#### 1. Openness（空きマス）
-```javascript
-opennessScore = emptyCells²
-重み: w1 = 1000
-```
-目的: 移動の自由度を確保
-
-#### 2. Monotonicity（蛇行配置）
-```javascript
-// 蛇行パターン: 左→右、右→左、左→右...
-snakePath = [row0_L→R, row1_R→L, row2_L→R, row3_R→L]
-monotonicityScore = 降順ペアの数
-重み: w2 = 800
-```
-目的: タイルを綺麗に並べて連鎖的なマージを促進
-
-#### 3. Smoothness（滑らかさ）
-```javascript
-smoothnessScore = -Σ|log₂(tile) - log₂(neighbor)|
-重み: w3 = 1500
-```
-目的: 隣接タイルの値の差を小さくして孤立を防ぐ
-
-#### 4. Adjacency（1-2ペアリング）
-```javascript
-if (tile === 1 && neighbor === 2) score += 10;
-if (tile === 1 && neighbor === 1) score -= 5;
-重み: w4 = 600
-```
-目的: 1と2の効率的な処理
-
-#### 5. Corner Integrity（コーナー固定）
-```javascript
-if (maxTile at corner[3,3]) score += maxValue × 1000;
-else if (maxTile at edge) score += maxValue × 300;
-else score -= maxValue × 500;
-重み: w5 = 3000（最重要）
-```
-目的: 最大タイルを右下コーナーに固定
-
-#### 6. Weighted Position（重み付け位置マップ）
-```javascript
-weightMap = [
-  [0,    0,    0,   0],
-  [1,    2,    4,   8],
-  [64,   128,  256, 1024],
-  [128,  256,  1024, 4096]
-]
-重み: なし（直接加算）
-```
-目的: 大きな数字を右下に誘導
-
-**最終スコア:**
-```javascript
-totalScore = w1×openness + w2×monotonicity + w3×smoothness
-           + w4×adjacency + w5×cornerIntegrity + weightedPosition
-```
-
-### デッキカウンティング
-
-**確率計算:**
-```javascript
-calculateTileProbabilities() {
-  // デッキの残り枚数をカウント
-  const deckCounts = { 1: 0, 2: 0, 3: 0 };
-  this.deck.forEach(value => deckCounts[value]++);
-
-  const totalCards = this.deck.length || 12;
-
-  // 次タイルが確定している場合
-  if (this.nextTileValue !== null) {
-    return [{ value: this.nextTileValue, probability: 1.0 }];
-  }
-
-  // 通常カードの確率
-  const probabilities = [];
-  [1, 2, 3].forEach(value => {
-    const prob = deckCounts[value] / totalCards;
-    if (prob > 0) {
-      probabilities.push({ value, probability: prob });
-    }
-  });
-
-  return probabilities;
-}
-```
-
-### トランスポジションテーブル
-
-**キャッシュによる高速化:**
-```javascript
-hashGrid(grid, tiles) {
-  // グリッドを文字列化してハッシュキーに
-  return grid.map(row =>
-    row.map(id => id ? tiles.find(t => t.id === id).value : 0)
-       .join(',')
-  ).join('|');
-}
-
-expectimaxMax(grid, tiles, depth) {
-  const hash = this.hashGrid(grid, tiles);
-  const cacheKey = `max_${hash}_${depth}`;
-
-  if (this.transpositionTable.has(cacheKey)) {
-    return this.transpositionTable.get(cacheKey);
-  }
-
-  // ... 評価計算 ...
-
-  this.transpositionTable.set(cacheKey, score);
-  return score;
-}
-```
-
-### 重み調整機能
-
-**localStorage連携:**
-```javascript
-// 重みの読み込み
-loadWeights() {
-  const saved = localStorage.getItem('threes-ai-weights');
-  if (saved) {
-    return JSON.parse(saved);
-  }
-  return { w1: 1000, w2: 800, w3: 1500, w4: 600, w5: 3000 };
-}
-
-// 重みの保存
-saveWeights() {
-  localStorage.setItem('threes-ai-weights',
-    JSON.stringify(this.weights));
-}
-
-// 重みの更新
-updateWeights(weights) {
-  this.weights = { ...this.weights, ...weights };
-  this.saveWeights();
-}
-```
-
----
-
 ## 🎨 UI/UX実装
 
 ### ドラッグプレビュー
@@ -411,54 +197,6 @@ renderDragPreview() {
 - スワイプ距離に応じてリアルタイムで移動プレビュー表示
 - 移動不可能なタイルは動かない
 
-### AI分析パネル
-
-**サイドバイサイドレイアウト:**
-
-```css
-body {
-  display: flex;
-  justify-content: center;
-}
-
-.container {
-  max-width: 500px;
-  flex-shrink: 0;
-}
-
-.ai-debug-panel {
-  width: 600px;
-  margin-left: 30px;
-}
-
-.ai-debug-content {
-  position: sticky;
-  top: 20px;
-}
-```
-
-**リアルタイム更新:**
-```javascript
-// 移動後に自動更新
-move(direction) {
-  // ... 移動処理 ...
-
-  if (this.debugPanelOpen) {
-    this.updateDebugPanel();
-  }
-}
-
-// 重みスライダーの変更時も更新
-slider.addEventListener('input', (e) => {
-  const value = parseInt(e.target.value);
-  this.ai.updateWeights({ [weight]: value });
-
-  if (this.debugPanelOpen) {
-    this.updateDebugPanel();
-  }
-});
-```
-
 ### 動的フォントサイズ
 
 **桁数に応じた自動調整:**
@@ -488,94 +226,13 @@ adjustFontSize(element, value) {
 }
 ```
 
-### トランスポジションテーブル
-
-- 同一盤面の再評価を防止
-- メモリ使用量とのトレードオフ
-- 各手の探索前にクリア
-
-### サンプリングによる計算量削減
-
-```javascript
-// 全空きマスではなく一部をサンプリング
-const sampleSize = Math.min(3, emptyCells.length);
-for (let i = 0; i < sampleSize; i++) {
-  // ... Chanceノードの評価 ...
-}
-```
-
----
-
-## 📊 データフロー
-
-### ゲーム開始からAI判断まで
-
-```
-1. ユーザーがAIボタンをクリック
-   ↓
-2. game.toggleAI() → game.startAI()
-   ↓
-3. setInterval() で定期的にAI判断を実行
-   ↓
-4. ai.getBestMove()
-   ├─ 各方向をシミュレート
-   ├─ expectimaxChance() で期待値計算
-   ├─ evaluateBoard() で盤面評価
-   └─ 最高スコアの方向を返す
-   ↓
-5. game.move(bestMove)
-   ├─ タイル移動
-   ├─ 新タイル追加
-   ├─ アニメーション
-   └─ UI更新
-   ↓
-6. AI分析パネルが開いていれば updateDebugPanel()
-```
-
-### AI分析パネルのデータフロー
-
-```
-1. ユーザーがAI分析ボタンをクリック
-   ↓
-2. game.toggleDebugPanel()
-   ├─ ThreesAIインスタンス作成
-   ├─ loadWeightsToUI() で重みをスライダーに反映
-   └─ updateDebugPanel() で初期表示
-   ↓
-3. ai.analyzeAllDirections()
-   ├─ 各方向をシミュレート
-   └─ evaluateBoardDetailed() で詳細スコア取得
-   ↓
-4. game.updateScoresTable(analysis)
-   └─ テーブルに評価結果を表示
-```
-
 ---
 
 ## 🔧 設定とカスタマイズ
 
-### AI評価関数の調整
-
-AI分析パネルのスライダーで以下を調整可能：
-
-- **w1 (Openness)**: 0-3000、デフォルト1000
-- **w2 (Monotonicity)**: 0-3000、デフォルト800
-- **w3 (Smoothness)**: 0-3000、デフォルト1500
-- **w4 (Adjacency)**: 0-3000、デフォルト600
-- **w5 (Corner Integrity)**: 0-5000、デフォルト3000
-
 ### localStorage保存データ
 
 ```javascript
-// AI重み設定
-'threes-ai-weights': {
-  w1: 1000,
-  w2: 800,
-  w3: 1500,
-  w4: 600,
-  w5: 3000
-}
-
 // ベストスコア
 'threes-best-score': 12345
 ```
@@ -584,10 +241,9 @@ AI分析パネルのスライダーで以下を調整可能：
 
 ## 🐛 既知の制限事項
 
-1. **モバイル最適化**: PC向けに最適化されており、モバイルではAI分析パネルが使いづらい
-2. **探索深度**: パフォーマンスの都合上、深さ3に固定
-3. **ボーナスカード確率**: 簡易実装のため、正確な確率計算ではない
-4. **ブラウザ互換性**: モダンブラウザ（Chrome, Firefox, Safari）推奨
+1. **モバイル最適化**: PC向けに最適化されている
+2. **ボーナスカード確率**: 簡易実装のため、正確な確率計算ではない
+3. **ブラウザ互換性**: モダンブラウザ（Chrome, Firefox, Safari）推奨
 
 ---
 
@@ -597,13 +253,6 @@ AI分析パネルのスライダーで以下を調整可能：
 - [ ] モバイル向けレスポンシブ対応
 - [ ] リプレイ機能（手順の再生）
 - [ ] 統計情報の表示（平均スコア、最大タイル達成率など）
-- [ ] オンラインランキング
-
-### AI改善
-- [ ] Monte Carlo Tree Search (MCTS) の実装
-- [ ] 機械学習による評価関数の最適化
-- [ ] マルチスレッド対応（Web Workers）
-- [ ] 可変探索深度（盤面の複雑度に応じて調整）
 
 ### UX改善
 - [ ] テーマカラー変更機能
@@ -617,7 +266,7 @@ AI分析パネルのスライダーで以下を調整可能：
 
 ### コード変更時の更新ルール
 
-**重要:** ゲームロジックやAI戦略を変更した際は、必ず関連するドキュメントも更新してください。
+**重要:** ゲームロジックを変更した際は、必ず関連するドキュメントも更新してください。
 
 **更新対象ドキュメント:**
 - **CLAUDE.md** - 技術仕様書（このドキュメント）
@@ -631,12 +280,6 @@ AI分析パネルのスライダーで以下を調整可能：
   - 操作方法の変更
   - 新機能の追加
 
-- **AI_STRATEGY.md** - AI戦略ドキュメント
-  - 評価関数の変更
-  - 重みの調整
-  - アルゴリズムの変更
-  - 戦略の変更
-
 **更新タイミング:**
 - ロジック変更のコミット時に同時更新
 - 新機能実装完了時に即座に更新
@@ -647,7 +290,3 @@ AI分析パネルのスライダーで以下を調整可能：
 - [ ] 影響するドキュメントを特定
 - [ ] ドキュメントを更新
 - [ ] 一貫性を確認（他のドキュメントとの矛盾がないか）
-
----
-
-**🤖 Generated with [Claude Code](https://claude.com/claude-code)**
