@@ -54,6 +54,22 @@
                         <path d="M8 6V5c0-1 1-2 2-2h4c1 0 2 1 2 2v1"/>
                     </svg>
                 </button>
+                <button id="ai-toggle" class="ai-toggle-button" title="AI自動操作">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                        <circle cx="12" cy="2" r="1.5"/>
+                        <rect x="11.5" y="3" width="1" height="2"/>
+                        <rect x="6" y="5" width="12" height="10" rx="1.5"/>
+                        <circle cx="9" cy="9" r="2" fill="#FAF8EF"/>
+                        <circle cx="15" cy="9" r="2" fill="#FAF8EF"/>
+                        <rect x="7.5" y="13" width="1.5" height="1.5" fill="#FAF8EF"/>
+                        <rect x="10" y="13" width="1.5" height="1.5" fill="#FAF8EF"/>
+                        <rect x="12.5" y="13" width="1.5" height="1.5" fill="#FAF8EF"/>
+                        <rect x="15" y="13" width="1.5" height="1.5" fill="#FAF8EF"/>
+                        <rect x="3" y="8" width="2.5" height="5" rx="0.5"/>
+                        <rect x="18.5" y="8" width="2.5" height="5" rx="0.5"/>
+                        <rect x="8" y="15.5" width="8" height="6" rx="1"/>
+                    </svg>
+                </button>
                 <button id="ranking-button" class="ranking-button" title="ランキング">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
                         <rect x="3" y="12" width="5" height="9" rx="1"/>
@@ -71,6 +87,9 @@
         <div class="game-container">
             <div id="game-board" class="game-board">
                 <!-- タイルはJavaScriptで生成 -->
+            </div>
+            <div id="ai-indicator" class="ai-indicator hidden">
+                <span>🤖 AI操作中...</span>
             </div>
             <div id="game-over" class="game-over hidden">
                 <h2>ゲームオーバー</h2>

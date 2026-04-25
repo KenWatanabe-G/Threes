@@ -12,12 +12,20 @@
 │  (UI構造、ゲーム盤)                              │
 └─────────────────────────────────────────────────┘
                       │
-              ┌───────┴───────┐
-              │               │
-       ┌──────▼──────┐  ┌─────▼──────┐
-       │  game.js    │  │  style.css │
-       │(ゲームロジック)│  │  (スタイル) │
-       └─────────────┘  └────────────┘
+        ┌─────────────┼─────────────┐
+        │             │             │
+ ┌──────▼──────┐ ┌────▼────┐ ┌──────▼──────┐
+ │  game.js    │ │style.css│ │ ai/worker.js│
+ │(ゲームロジック)│ │ (スタイル)│ │  (Web Worker)│
+ └──────┬──────┘ └─────────┘ └──────┬──────┘
+        │  postMessage / onmessage  │
+        └───────────────────────────┘
+                                    │
+                          ┌─────────┴──────────────┐
+                          │ ai/board.js            │
+                          │ ai/heuristic.js        │
+                          │ ai/expectimax.js       │
+                          └────────────────────────┘
 ```
 
 ### ファイル別責務
@@ -31,12 +39,21 @@
 - Undo機能（履歴管理）
 - UI更新とイベント処理
 - ドラッグ＆スワイプ処理
+- AI Worker との通信 (`startAI` / `stopAI` / `requestAINextMove`)
 
 #### `style.css` - スタイリング
 - PC向けレイアウト
 - タイルのカラースキーム
 - アニメーション定義
 - レスポンシブ対応（簡易版）
+
+#### `ai/` - AI 関連 (Web Worker)
+- **`board.js`**: 盤面のランク表現 (0-15) と移動シミュレータ。`makeMove`、`insertBrick`、`maxElement`、`findDiffCount`、`calculateVariance`
+- **`heuristic.js`**: 65536 エントリの評価テーブル (`empty` / `merges` / `1-2 merges` / `monotonicity` / `sum`) を起動時に初期化、`getHeurWeightScore` で行/列ごとに参照
+- **`expectimax.js`**: Expectimax 探索本体。`expectSearch` がトップレベル、`deptSearch` → `heurSearch` → `insertHeurSearch` → `recursionDeptSearch` の再帰
+- **`worker.js`**: Worker エントリ。`importScripts` で上記を読み込み、メインスレッドからの `{ grid, deck, nextTileValue, nextTileIsBonus }` 要求に最適 move を返す
+
+[halfrost/threes-ai](https://github.com/halfrost/threes-ai) (Go) からの移植。動的探索深度・キャッシュ (BigInt ハッシュ) でパフォーマンスを確保。
 
 ---
 
@@ -212,6 +229,62 @@ adjustFontSize(element, value) {
   else element.style.fontSize = '1.5em';
 }
 ```
+
+---
+
+## 🤖 AI 実装詳細
+
+### アルゴリズム: Expectimax
+
+[halfrost/threes-ai](https://github.com/halfrost/threes-ai) の Go 実装を JavaScript に移植。
+
+**探索木構造:**
+```
+       Max Node (プレイヤー)
+      /     |    |     \
+   UP    DOWN  LEFT   RIGHT
+    │      │    │       │
+   Chance Node (次タイル候補ごと)
+    │
+   Insert Node (空いた端に挿入する位置)
+    │
+   ... 再帰 ...
+```
+
+### 評価関数 (1行ごとに事前計算)
+
+| 重み                  | 値      | 説明                              |
+| --------------------- | ------- | --------------------------------- |
+| `LOST_PENALTY_WEIGHT` | 10000   | 基礎ペナルティ                    |
+| `EMPTY_WEIGHT`        | 500     | 空きマス数                        |
+| `MERGES_WEIGHT`       | 200     | 同値隣接ランレングス              |
+| `ONE_TWO_MERGES_WEIGHT` | 700   | 1-2 隣接 (3 が作れる位置)         |
+| `MONOTONICITY_WEIGHT` | 40      | 単調性 (左右の小さい方を引く)     |
+| `SUM_WEIGHT`          | 100     | タイル値合計 (負の重み)           |
+
+`heurScoreTable[65536]` に行/列の状態 (4セル × 4bit = 16bit) ごとのスコアを起動時に事前計算。`getHeurWeightScore` は 4 行 + 4 列のテーブル参照を合算するだけで O(1)。
+
+### 動的探索深度
+
+```javascript
+deptLevel(board) {
+  let dept = Math.max(3, findDiffCount(board) - 2);
+  const { max, row, col } = maxElement(board);
+  const variance = calculateVariance(board, row, col);
+  if (max - variance <= 4 && max >= 9) dept += 2;
+  return dept;
+}
+```
+
+異なるタイル種類数が多いほど深く、最大タイルがコーナーに集約されている (分散が小さい) ほどさらに深く読む。
+
+### キャッシュ
+
+`Map<bigint, number>` で盤面のハッシュ → スコア。各セル 4bit を 64bit BigInt に詰めることで衝突なし。
+
+### Web Worker
+
+AI 計算は `ai/worker.js` で別スレッド実行。メインスレッドは `postMessage` で要求を投げ、`onmessage` で `move` を受け取る。リクエスト ID で古いレスポンスを破棄するため、AI を途中で停止しても安全。
 
 ---
 

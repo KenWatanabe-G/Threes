@@ -149,6 +149,7 @@ body {
 }
 
 .undo-button,
+.ai-toggle-button,
 .delete-mode-button {
     background: #4caf50;
     color: white;
@@ -178,6 +179,7 @@ body {
 }
 
 .undo-button svg,
+.ai-toggle-button svg,
 .delete-mode-button svg {
     width: 24px;
     height: 24px;
@@ -190,6 +192,16 @@ body {
 .delete-mode-button.active {
     background: #f1c40f;
     box-shadow: 0 0 10px #f1c40f;
+}
+
+.ai-toggle-button:disabled {
+    background: #95a5a6;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.ai-toggle-button.active {
+    background: #f44336;
 }
 
 /* クリップボードコピーボタン */
@@ -228,7 +240,8 @@ body {
 }
 
 .new-game-button:hover,
-.undo-button:hover:not(:disabled) {
+.undo-button:hover:not(:disabled),
+.ai-toggle-button:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
 }
@@ -241,7 +254,16 @@ body {
     background: #2980b9;
 }
 
-.new-game-button:active {
+.ai-toggle-button:hover:not(:disabled) {
+    background: #45a049;
+}
+
+.ai-toggle-button.active:hover:not(:disabled) {
+    background: #e53935;
+}
+
+.new-game-button:active,
+.ai-toggle-button:active:not(:disabled) {
     transform: translateY(0);
 }
 
@@ -427,6 +449,30 @@ body {
 /* 移動中のタイル（マージ前） */
 .tile-merging {
     z-index: 100;
+}
+
+.ai-indicator {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(76, 175, 80, 0.9);
+    color: white;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 0.9em;
+    font-weight: bold;
+    z-index: 50;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    animation: pulse 2s infinite;
+}
+
+.ai-indicator.hidden {
+    display: none;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
 }
 
 .game-over {
@@ -633,6 +679,7 @@ body {
     }
 
     .undo-button,
+    .ai-toggle-button,
     .delete-mode-button {
         width: 38px;
         height: 38px;
@@ -640,6 +687,7 @@ body {
     }
 
     .undo-button svg,
+    .ai-toggle-button svg,
     .delete-mode-button svg,
     .ranking-button svg {
         width: 20px;

@@ -45,6 +45,13 @@ class ThreesGame {
         // 削除モード
         this.deleteMode = false;
 
+        // AI 自動操作
+        this.aiMode = false;
+        this.aiWorker = null;
+        this.aiRequestId = 0;
+        this.aiPendingRequest = null;
+        this.aiIndicatorElement = document.getElementById('ai-indicator');
+
         // ランキング用フラグ
         this.usedUndo = false;      // Undoを使用したか
         this.usedDelete = false;    // 削除機能を使用したか
@@ -408,10 +415,100 @@ class ThreesGame {
             this.toggleDeleteMode();
         });
 
+        // AI自動操作ボタン
+        document.getElementById('ai-toggle').addEventListener('click', () => {
+            this.toggleAI();
+        });
+
         // クリップボードコピーボタン
         document.getElementById('copy-board-button').addEventListener('click', () => {
             this.copyBoardToClipboard();
         });
+    }
+
+    // ---- AI 自動操作 ----
+
+    toggleAI() {
+        if (this.aiMode) {
+            this.stopAI();
+        } else {
+            this.startAI();
+        }
+    }
+
+    startAI() {
+        if (this.aiMode) return;
+        this.aiMode = true;
+        const button = document.getElementById('ai-toggle');
+        button.classList.add('active');
+        this.aiIndicatorElement.classList.remove('hidden');
+        this.updateUndoButton();
+
+        if (!this.aiWorker) {
+            this.aiWorker = new Worker('ai/worker.js');
+            this.aiWorker.addEventListener('message', (e) => this.handleAIMessage(e));
+            this.aiWorker.addEventListener('error', (e) => {
+                console.error('AI worker error:', e.message);
+                this.stopAI();
+            });
+        }
+
+        this.requestAINextMove();
+    }
+
+    stopAI() {
+        if (!this.aiMode) return;
+        this.aiMode = false;
+        this.aiPendingRequest = null;
+        const button = document.getElementById('ai-toggle');
+        button.classList.remove('active');
+        this.aiIndicatorElement.classList.add('hidden');
+        this.updateUndoButton();
+    }
+
+    requestAINextMove() {
+        if (!this.aiMode || !this.aiWorker) return;
+        if (this.isMoving) return;
+        if (this.isGameOver()) {
+            this.stopAI();
+            return;
+        }
+
+        const requestId = ++this.aiRequestId;
+        this.aiPendingRequest = requestId;
+        this.aiWorker.postMessage({
+            requestId,
+            grid: this.getValueGrid(),
+            deck: [...this.deck],
+            nextTileValue: this.nextTileValue,
+            nextTileIsBonus: this.nextTileIsBonus
+        });
+    }
+
+    handleAIMessage(event) {
+        const { requestId, move } = event.data;
+        if (!this.aiMode) return;
+        if (requestId !== this.aiPendingRequest) return; // 古いレスポンスは破棄
+        this.aiPendingRequest = null;
+
+        if (!move) {
+            this.stopAI();
+            return;
+        }
+        this.move(move);
+    }
+
+    // タイル ID のグリッドではなく、各セルの値 (0 = 空) のグリッドを返す
+    getValueGrid() {
+        const grid = [];
+        for (let r = 0; r < this.gridSize; r++) {
+            const row = new Array(this.gridSize).fill(0);
+            grid.push(row);
+        }
+        Object.values(this.tiles).forEach(tile => {
+            grid[tile.row][tile.col] = tile.value;
+        });
+        return grid;
     }
 
     getValidMoves() {
@@ -518,6 +615,9 @@ class ThreesGame {
     }
 
     startGame() {
+        // AI停止
+        if (this.aiMode) this.stopAI();
+
         // 保存データをクリア
         this.clearGameState();
 
@@ -695,12 +795,15 @@ class ThreesGame {
                     this.updateUndoButton();
                     // ゲーム状態を自動保存
                     this.saveGameState();
+                    // AI 動作中なら次の手を要求
+                    if (this.aiMode) this.requestAINextMove();
                 }, 20);
             }, 120);
         } else {
             // 移動が起こらなかった場合は、保存した状態を削除
             this.history.pop();
             this.isMoving = false;
+            if (this.aiMode) this.stopAI();
         }
     }
 
@@ -981,6 +1084,9 @@ class ThreesGame {
     }
 
     endGame() {
+        // AI停止
+        if (this.aiMode) this.stopAI();
+
         // プレイ回数をインクリメント（ゲームオーバー時にカウント）
         this.playCount++;
         localStorage.setItem('threes-gameover-count', this.playCount.toString());
@@ -1225,7 +1331,7 @@ class ThreesGame {
     }
 
     canUndo() {
-        return this.history.length > 0 && !this.isMoving && !this.isGameOver();
+        return this.history.length > 0 && !this.isMoving && !this.isGameOver() && !this.aiMode;
     }
 
     // 確認ダイアログを表示（Promise版）
@@ -1890,6 +1996,9 @@ class ThreesGame {
 
     // 保存された状態からゲームを復元
     restoreGameState(state) {
+        // AI停止
+        if (this.aiMode) this.stopAI();
+
         // 既存のタイル要素を削除
         const existingTiles = this.gameBoard.querySelectorAll('.tile');
         existingTiles.forEach(tile => tile.remove());
