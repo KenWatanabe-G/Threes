@@ -17,7 +17,6 @@ class ThreesGame {
         this.ratingDeltaElement = document.getElementById('rating-delta');
         this.peakRatingElement = document.getElementById('peak-rating');
         this.gameOverElement = document.getElementById('game-over');
-        this.aiIndicatorElement = document.getElementById('ai-indicator');
         this.nextTileElement = document.getElementById('next-tile');
 
         this.touchStartX = 0;
@@ -39,12 +38,6 @@ class ThreesGame {
         this.nextTileValue = null;
         this.nextTileIsBonus = false;
 
-        // AI自動操作
-        this.aiMode = false;
-        this.aiInterval = null;
-        this.aiSpeed = 300; // ミリ秒
-        this.ai = null; // ThreesAIインスタンス
-
         // Undo用の履歴
         this.history = []; // ゲーム状態のスナップショット
         this.maxHistorySize = 10; // 最大10手まで戻せる
@@ -52,8 +45,12 @@ class ThreesGame {
         // 削除モード
         this.deleteMode = false;
 
-        // AI分析パネル
-        this.debugPanelOpen = false;
+        // AI 自動操作
+        this.aiMode = false;
+        this.aiWorker = null;
+        this.aiRequestId = 0;
+        this.aiPendingRequest = null;
+        this.aiIndicatorElement = document.getElementById('ai-indicator');
 
         // ランキング用フラグ
         this.usedUndo = false;      // Undoを使用したか
@@ -423,104 +420,95 @@ class ThreesGame {
             this.toggleAI();
         });
 
-        // AI分析パネルボタン
-        document.getElementById('ai-debug-toggle').addEventListener('click', () => {
-            this.toggleDebugPanel();
-        });
-
-        document.getElementById('ai-debug-close').addEventListener('click', () => {
-            this.closeDebugPanel();
-        });
-
-        // 重みスライダー
-        ['w1', 'w2', 'w3', 'w4', 'w5'].forEach(weight => {
-            const slider = document.getElementById(`${weight}-slider`);
-            const valueDisplay = document.getElementById(`${weight}-value`);
-
-            slider.addEventListener('input', (e) => {
-                const value = parseInt(e.target.value);
-                valueDisplay.textContent = value;
-
-                // AIインスタンスの重みを更新
-                if (this.ai) {
-                    this.ai.updateWeights({ [weight]: value });
-                    // パネルが開いていればリアルタイム更新
-                    if (this.debugPanelOpen) {
-                        this.updateDebugPanel();
-                    }
-                }
-            });
-        });
-
-        // デフォルトに戻すボタン
-        document.getElementById('reset-weights').addEventListener('click', () => {
-            if (this.ai) {
-                this.ai.resetWeights();
-                this.loadWeightsToUI();
-                if (this.debugPanelOpen) {
-                    this.updateDebugPanel();
-                }
-            }
-        });
-
         // クリップボードコピーボタン
         document.getElementById('copy-board-button').addEventListener('click', () => {
             this.copyBoardToClipboard();
         });
-
-        // ゲーム状態が変わったらパネルを更新（移動後など）
-        // move()メソッド内で updateDebugPanel() を呼ぶ
     }
 
+    // ---- AI 自動操作 ----
+
     toggleAI() {
-        this.aiMode = !this.aiMode;
-        const button = document.getElementById('ai-toggle');
-
         if (this.aiMode) {
-            button.classList.add('active');
-            this.aiIndicatorElement.classList.remove('hidden');
-            this.startAI();
-        } else {
-            button.classList.remove('active');
-            this.aiIndicatorElement.classList.add('hidden');
             this.stopAI();
+        } else {
+            this.startAI();
         }
-
-        // Undoボタンの状態を更新
-        this.updateUndoButton();
     }
 
     startAI() {
-        if (this.aiInterval) return;
+        if (this.aiMode) return;
+        this.aiMode = true;
+        const button = document.getElementById('ai-toggle');
+        button.classList.add('active');
+        this.aiIndicatorElement.classList.remove('hidden');
+        this.updateUndoButton();
 
-        // ThreesAIインスタンスを作成
-        if (!this.ai) {
-            this.ai = new ThreesAI(this);
+        if (!this.aiWorker) {
+            this.aiWorker = new Worker('ai/worker.js');
+            this.aiWorker.addEventListener('message', (e) => this.handleAIMessage(e));
+            this.aiWorker.addEventListener('error', (e) => {
+                console.error('AI worker error:', e.message);
+                this.stopAI();
+            });
         }
 
-        this.aiInterval = setInterval(() => {
-            if (this.isMoving) return;
-
-            const validMoves = this.getValidMoves();
-            if (validMoves.length === 0) {
-                this.stopAI();
-                return;
-            }
-
-            // 最適な移動を選択
-            const bestMove = this.ai.getBestMove();
-            if (bestMove) {
-                this.move(bestMove);
-            }
-        }, this.aiSpeed);
+        this.requestAINextMove();
     }
 
-
     stopAI() {
-        if (this.aiInterval) {
-            clearInterval(this.aiInterval);
-            this.aiInterval = null;
+        if (!this.aiMode) return;
+        this.aiMode = false;
+        this.aiPendingRequest = null;
+        const button = document.getElementById('ai-toggle');
+        button.classList.remove('active');
+        this.aiIndicatorElement.classList.add('hidden');
+        this.updateUndoButton();
+    }
+
+    requestAINextMove() {
+        if (!this.aiMode || !this.aiWorker) return;
+        if (this.isMoving) return;
+        if (this.isGameOver()) {
+            this.stopAI();
+            return;
         }
+
+        const requestId = ++this.aiRequestId;
+        this.aiPendingRequest = requestId;
+        this.aiWorker.postMessage({
+            requestId,
+            grid: this.getValueGrid(),
+            deck: [...this.deck],
+            nextTileValue: this.nextTileValue,
+            nextTileIsBonus: this.nextTileIsBonus
+        });
+    }
+
+    handleAIMessage(event) {
+        const { requestId, move } = event.data;
+        if (!this.aiMode) return;
+        if (requestId !== this.aiPendingRequest) return; // 古いレスポンスは破棄
+        this.aiPendingRequest = null;
+
+        if (!move) {
+            this.stopAI();
+            return;
+        }
+        this.move(move);
+    }
+
+    // タイル ID のグリッドではなく、各セルの値 (0 = 空) のグリッドを返す
+    getValueGrid() {
+        const grid = [];
+        for (let r = 0; r < this.gridSize; r++) {
+            const row = new Array(this.gridSize).fill(0);
+            grid.push(row);
+        }
+        Object.values(this.tiles).forEach(tile => {
+            grid[tile.row][tile.col] = tile.value;
+        });
+        return grid;
     }
 
     getValidMoves() {
@@ -628,9 +616,7 @@ class ThreesGame {
 
     startGame() {
         // AI停止
-        if (this.aiMode) {
-            this.toggleAI();
-        }
+        if (this.aiMode) this.stopAI();
 
         // 保存データをクリア
         this.clearGameState();
@@ -807,18 +793,17 @@ class ThreesGame {
                     this.isMoving = false;
                     // 移動完了後、Undoボタンの状態を更新
                     this.updateUndoButton();
-                    // AI分析パネルをリアルタイム更新
-                    if (this.debugPanelOpen) {
-                        this.updateDebugPanel();
-                    }
                     // ゲーム状態を自動保存
                     this.saveGameState();
+                    // AI 動作中なら次の手を要求
+                    if (this.aiMode) this.requestAINextMove();
                 }, 20);
             }, 120);
         } else {
             // 移動が起こらなかった場合は、保存した状態を削除
             this.history.pop();
             this.isMoving = false;
+            if (this.aiMode) this.stopAI();
         }
     }
 
@@ -1100,9 +1085,7 @@ class ThreesGame {
 
     endGame() {
         // AI停止
-        if (this.aiMode) {
-            this.toggleAI();
-        }
+        if (this.aiMode) this.stopAI();
 
         // プレイ回数をインクリメント（ゲームオーバー時にカウント）
         this.playCount++;
@@ -1348,7 +1331,7 @@ class ThreesGame {
     }
 
     canUndo() {
-        return this.history.length > 0 && !this.aiMode && !this.isMoving && !this.isGameOver();
+        return this.history.length > 0 && !this.isMoving && !this.isGameOver() && !this.aiMode;
     }
 
     // 確認ダイアログを表示（Promise版）
@@ -1971,128 +1954,6 @@ class ThreesGame {
         });
     }
 
-    // AI分析パネル関連のメソッド
-    toggleDebugPanel() {
-        this.debugPanelOpen = !this.debugPanelOpen;
-        const panel = document.getElementById('ai-debug-panel');
-        const button = document.getElementById('ai-debug-toggle');
-
-        if (this.debugPanelOpen) {
-            panel.classList.remove('hidden');
-            button.classList.add('active');
-
-            // AIインスタンスを作成（まだない場合）
-            if (!this.ai) {
-                this.ai = new ThreesAI(this);
-            }
-
-            // UIに重みを読み込む
-            this.loadWeightsToUI();
-
-            // パネルを更新
-            this.updateDebugPanel();
-        } else {
-            this.closeDebugPanel();
-        }
-    }
-
-    closeDebugPanel() {
-        this.debugPanelOpen = false;
-        const panel = document.getElementById('ai-debug-panel');
-        const button = document.getElementById('ai-debug-toggle');
-        panel.classList.add('hidden');
-        button.classList.remove('active');
-    }
-
-    loadWeightsToUI() {
-        if (!this.ai) return;
-
-        const weights = this.ai.weights;
-        ['w1', 'w2', 'w3', 'w4', 'w5'].forEach(weight => {
-            const slider = document.getElementById(`${weight}-slider`);
-            const valueDisplay = document.getElementById(`${weight}-value`);
-            slider.value = weights[weight];
-            valueDisplay.textContent = weights[weight];
-        });
-    }
-
-    updateDebugPanel() {
-        if (!this.debugPanelOpen || !this.ai) return;
-
-        // 全方向の評価を取得
-        const analysis = this.ai.analyzeAllDirections();
-
-        // 最適手を計算
-        let bestMove = null;
-        let bestScore = -Infinity;
-
-        const directions = ['up', 'down', 'left', 'right'];
-        directions.forEach(direction => {
-            if (analysis[direction] && analysis[direction].total > bestScore) {
-                bestScore = analysis[direction].total;
-                bestMove = direction;
-            }
-        });
-
-        // 最適手の表示
-        const directionMap = {
-            'up': '↑ 上',
-            'down': '↓ 下',
-            'left': '← 左',
-            'right': '→ 右'
-        };
-
-        document.getElementById('best-move-display').textContent =
-            bestMove ? directionMap[bestMove] : '移動不可';
-        document.getElementById('best-move-score').textContent =
-            bestScore > -Infinity ? Math.round(bestScore) : '-';
-
-        // テーブルを更新
-        this.updateScoresTable(analysis, bestMove);
-    }
-
-    updateScoresTable(analysis, bestMove) {
-        const tbody = document.getElementById('scores-table-body');
-        tbody.innerHTML = '';
-
-        const directionMap = {
-            'up': '↑ 上',
-            'down': '↓ 下',
-            'left': '← 左',
-            'right': '→ 右'
-        };
-
-        const directions = ['up', 'down', 'left', 'right'];
-        directions.forEach(direction => {
-            const row = document.createElement('tr');
-            const data = analysis[direction];
-
-            if (direction === bestMove) {
-                row.classList.add('best-row');
-            }
-
-            if (!data) {
-                row.innerHTML = `
-                    <td><span class="direction-arrow">${directionMap[direction]}</span></td>
-                    <td colspan="7" style="color: #999;">移動不可</td>
-                `;
-            } else {
-                row.innerHTML = `
-                    <td><span class="direction-arrow">${directionMap[direction]}</span></td>
-                    <td>${Math.round(data.total)}</td>
-                    <td>${Math.round(data.openness)}</td>
-                    <td>${Math.round(data.monotonicity)}</td>
-                    <td>${Math.round(data.smoothness)}</td>
-                    <td>${Math.round(data.adjacency)}</td>
-                    <td>${Math.round(data.cornerIntegrity)}</td>
-                    <td>${Math.round(data.weightedPosition)}</td>
-                `;
-            }
-
-            tbody.appendChild(row);
-        });
-    }
-
     // ゲーム状態をlocalStorageに保存
     saveGameState() {
         const state = {
@@ -2136,9 +1997,7 @@ class ThreesGame {
     // 保存された状態からゲームを復元
     restoreGameState(state) {
         // AI停止
-        if (this.aiMode) {
-            this.toggleAI();
-        }
+        if (this.aiMode) this.stopAI();
 
         // 既存のタイル要素を削除
         const existingTiles = this.gameBoard.querySelectorAll('.tile');
