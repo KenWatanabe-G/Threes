@@ -286,6 +286,15 @@ deptLevel(board) {
 
 AI 計算は `ai/worker.js` で別スレッド実行。メインスレッドは `postMessage` で要求を投げ、`onmessage` で `move` を受け取る。リクエスト ID で古いレスポンスを破棄するため、AI を途中で停止しても安全。
 
+### AI 使用時のランキング/レーティング扱い
+
+AI を 1 手でも使ったプレイは Undo・削除と同じ「補助手段」として扱う。
+
+- **フラグ**: `this.usedAI` (constructor で初期化、`newGame` でリセット、`saveGameState`/`restoreGameState` で永続化)
+- **カテゴリ**: `getRankingCategory()` が `usedDelete || usedAI` を `anything_goes` (なんでもあり) に振り分ける
+- **レーティング**: `shouldUpdateRating()` が `!usedUndo && !usedDelete && !usedAI` のときのみ true。AI 使用時は `getRatingSummaryWithoutChange()` 経路で変動なしとして表示
+- **初回確認ダイアログ**: `startAI()` で現在カテゴリが `normal` かつ `!usedAI` のときに `showConfirmDialog` を表示。キャンセル時は `usedAI` を立てず AI も起動しない (Undo・削除と同じパターン)。承諾後 `usedAI = true` を立てて `saveGameState()` し、AI を起動
+
 ---
 
 ## 🎯 パフォーマンス最適化
