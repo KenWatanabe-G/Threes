@@ -194,12 +194,15 @@ function transpose(bb) {
 //   change[i] === 1 はライン i が動いたことを示す:
 //     - UP/DOWN: ライン index = 列 index (旧 API と互換: change[y])
 //     - LEFT/RIGHT: ライン index = 行 index
+//
+// UP/DOWN は「列を抽出 → ROW_LEFT/RIGHT 参照 → 結果列を新しい行表現に書き戻す」
+// を 1 回の Uint16Array(4) 確保で行う (旧 transpose+slide+transpose の 3 確保を排除)
 function makeMove(bb, move) {
     const change = new Uint8Array(4);
     let changeNum = 0;
+    const out = new Uint16Array(4);
 
     if (move === 2) { // LEFT
-        const out = new Uint16Array(4);
         for (let i = 0; i < 4; i++) {
             const r = bb[i];
             out[i] = ROW_LEFT[r];
@@ -211,7 +214,6 @@ function makeMove(bb, move) {
         return { board: out, change, changeNum };
     }
     if (move === 3) { // RIGHT
-        const out = new Uint16Array(4);
         for (let i = 0; i < 4; i++) {
             const r = bb[i];
             out[i] = ROW_RIGHT[r];
@@ -222,31 +224,29 @@ function makeMove(bb, move) {
         }
         return { board: out, change, changeNum };
     }
-    if (move === 0) { // UP: 転置 + LEFT + 転置
-        const t = transpose(bb);
-        const out = new Uint16Array(4);
-        for (let i = 0; i < 4; i++) {
-            const r = t[i];
-            out[i] = ROW_LEFT[r];
-            if (ROW_LEFT_CHG[r]) {
-                change[i] = 1; // ここでの i は元の列 index
-                changeNum++;
-            }
-        }
-        return { board: transpose(out), change, changeNum };
-    }
-    // DOWN: 転置 + RIGHT + 転置
-    const t = transpose(bb);
-    const out = new Uint16Array(4);
-    for (let i = 0; i < 4; i++) {
-        const r = t[i];
-        out[i] = ROW_RIGHT[r];
-        if (ROW_RIGHT_CHG[r]) {
-            change[i] = 1;
+
+    // UP / DOWN: 各列 j を packed 16bit (低位 nibble = row 0) に組み立て、
+    // ROW_LEFT (UP の場合) / ROW_RIGHT (DOWN の場合) を参照、結果列を out へ書き戻す
+    const r0 = bb[0], r1 = bb[1], r2 = bb[2], r3 = bb[3];
+    const TBL = (move === 0) ? ROW_LEFT : ROW_RIGHT;
+    const TBL_CHG = (move === 0) ? ROW_LEFT_CHG : ROW_RIGHT_CHG;
+    for (let j = 0; j < 4; j++) {
+        const sh = j * 4;
+        const col = ((r0 >> sh) & 0xf)
+                  | (((r1 >> sh) & 0xf) << 4)
+                  | (((r2 >> sh) & 0xf) << 8)
+                  | (((r3 >> sh) & 0xf) << 12);
+        const newCol = TBL[col];
+        if (TBL_CHG[col]) {
+            change[j] = 1;
             changeNum++;
         }
+        out[0] |= ((newCol >> 0) & 0xf) << sh;
+        out[1] |= ((newCol >> 4) & 0xf) << sh;
+        out[2] |= ((newCol >> 8) & 0xf) << sh;
+        out[3] |= ((newCol >> 12) & 0xf) << sh;
     }
-    return { board: transpose(out), change, changeNum };
+    return { board: out, change, changeNum };
 }
 
 // 移動方向に応じて、changeLine の位置 (新しく空いた端) にブリックを挿入
@@ -271,6 +271,23 @@ function maxElement(bb) {
         }
     }
     return { max, row, col };
+}
+
+// 最大値だけが欲しい場合のホットパス用 (オブジェクト確保なし)
+function maxValue(bb) {
+    let max = 0;
+    for (let i = 0; i < 4; i++) {
+        const r = bb[i];
+        const v0 = (r >> 0) & 0xf;
+        const v1 = (r >> 4) & 0xf;
+        const v2 = (r >> 8) & 0xf;
+        const v3 = (r >> 12) & 0xf;
+        if (v0 > max) max = v0;
+        if (v1 > max) max = v1;
+        if (v2 > max) max = v2;
+        if (v3 > max) max = v3;
+    }
+    return max;
 }
 
 // 0,1,2 を除いた distinct な値の数
@@ -345,7 +362,7 @@ if (typeof module !== 'undefined' && module.exports) {
         BOARD_WIDTH, BOARD_HEIGHT, VALUE_MAP, RE_VALUE_MAP,
         valueToRank, rankToValue,
         valuesToBB, valuesToRanks, cloneBB, getCell, setCell,
-        makeMove, insertBrick, maxElement, findDiffCount, calculateVariance,
+        makeMove, insertBrick, maxElement, maxValue, findDiffCount, calculateVariance,
         candidateFromDeck, transpose, initMoveTables,
         ROW_LEFT, ROW_LEFT_CHG, ROW_RIGHT, ROW_RIGHT_CHG
     };

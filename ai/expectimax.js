@@ -104,7 +104,7 @@ function insertHeurSearch(gameState, bb, candidate, prob) {
 
 function recursionDeptSearch(gameState, bb, candidate, move, changes, changeNum, prob) {
     let res = 0;
-    const { max: maxEle } = maxElement(bb);
+    const maxEle = maxValue(bb);
 
     // 元の Go 実装と同じセマンティクス: 全部 0 のときは [4,4,4] とみなす
     let oneNum = candidate[0];
