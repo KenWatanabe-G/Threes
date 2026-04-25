@@ -56,6 +56,7 @@ class ThreesGame {
         // ランキング用フラグ
         this.usedUndo = false;      // Undoを使用したか
         this.usedDelete = false;    // 削除機能を使用したか
+        this.usedAI = false;        // AIを使用したか
 
         // クライアントID（ランキング用）
         this.clientId = this.getOrCreateClientId();
@@ -429,17 +430,31 @@ class ThreesGame {
 
     // ---- AI 自動操作 ----
 
-    toggleAI() {
+    async toggleAI() {
         if (this.aiMode) {
             this.stopAI();
         } else {
-            this.startAI();
+            await this.startAI();
         }
     }
 
-    startAI() {
+    async startAI() {
         if (this.aiMode) return;
+
+        // 初回 AI 起動時、ランキングカテゴリが通常 (normal) のままなら
+        // カテゴリ変更とレーティング非変動を伝えるダイアログを出す。
+        // 既に Undo/削除でカテゴリが落ちている場合は確認不要。
+        if (!this.usedAI && this.getRankingCategory() === 'normal') {
+            const confirmed = await this.showConfirmDialog(
+                'ランキングカテゴリ変更',
+                'AIを使用すると、このプレイは通常ランキングではなく「なんでもあり」カテゴリで記録されます。また、このプレイではプレイヤーレーティングは変動しません。続行しますか？'
+            );
+            if (!confirmed) return;
+        }
+
+        this.usedAI = true;
         this.aiMode = true;
+        this.saveGameState();
         const button = document.getElementById('ai-toggle');
         button.classList.add('active');
         this.aiIndicatorElement.classList.remove('hidden');
@@ -678,6 +693,7 @@ class ThreesGame {
         // ランキング用フラグをリセット
         this.usedUndo = false;
         this.usedDelete = false;
+        this.usedAI = false;
 
         // 履歴をクリア
         this.history = [];
@@ -1260,7 +1276,7 @@ class ThreesGame {
     }
 
     shouldUpdateRating() {
-        return !this.usedUndo && !this.usedDelete;
+        return !this.usedUndo && !this.usedDelete && !this.usedAI;
     }
 
     calculatePlayRating(category = this.getRankingCategory()) {
@@ -2012,7 +2028,8 @@ class ThreesGame {
             deck: [...this.deck],
             gameOver: this.isGameOver(),
             usedUndo: this.usedUndo,
-            usedDelete: this.usedDelete
+            usedDelete: this.usedDelete,
+            usedAI: this.usedAI
         };
 
         localStorage.setItem('threes-game-state', JSON.stringify(state));
@@ -2070,6 +2087,7 @@ class ThreesGame {
         // ランキング用フラグを復元（古いセーブデータとの互換性のためデフォルト値をfalseに）
         this.usedUndo = state.usedUndo || false;
         this.usedDelete = state.usedDelete || false;
+        this.usedAI = state.usedAI || false;
 
         // 履歴をクリア
         this.history = [];
@@ -2105,7 +2123,7 @@ class ThreesGame {
 
     // ランキングカテゴリを決定
     getRankingCategory() {
-        if (this.usedDelete) {
+        if (this.usedDelete || this.usedAI) {
             return 'anything_goes'; // なんでもあり
         } else if (this.usedUndo) {
             return 'with_undo'; // アンドゥあり
@@ -2138,7 +2156,7 @@ class ThreesGame {
         const categoryNotes = {
             'normal': 'このスコアは通常ランキングに登録され、プレイヤーレーティングの対象にもなります。',
             'with_undo': 'このプレイはアンドゥを使用しているため、「アンドゥあり」ランキングに登録されます。プレイヤーレーティングは変動しません。',
-            'anything_goes': 'このプレイは削除機能を使用しているため、「なんでもあり」ランキングに登録されます。プレイヤーレーティングは変動しません。'
+            'anything_goes': 'このプレイは削除機能またはAIを使用しているため、「なんでもあり」ランキングに登録されます。プレイヤーレーティングは変動しません。'
         };
 
         document.getElementById('ranking-category-display').textContent = categoryNames[category];
