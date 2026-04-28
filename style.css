@@ -150,7 +150,8 @@ body {
 
 .undo-button,
 .ai-toggle-button,
-.delete-mode-button {
+.delete-mode-button,
+.suggest-toggle-button {
     background: #4caf50;
     color: white;
     border: none;
@@ -180,7 +181,8 @@ body {
 
 .undo-button svg,
 .ai-toggle-button svg,
-.delete-mode-button svg {
+.delete-mode-button svg,
+.suggest-toggle-button svg {
     width: 24px;
     height: 24px;
 }
@@ -475,6 +477,90 @@ body {
     50% { opacity: 0.7; }
 }
 
+/* サジェスト機能 */
+.suggest-toggle-button {
+    background: #f1c40f;
+    color: #fff;
+}
+
+.suggest-toggle-button:hover:not(:disabled) {
+    background: #d4ac0d;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
+}
+
+.suggest-toggle-button.active {
+    background: #f39c12;
+    box-shadow: 0 0 12px rgba(241, 196, 15, 0.7);
+}
+
+.suggest-toggle-button:disabled {
+    background: #95a5a6;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.suggestion-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 60;
+}
+
+.suggestion-overlay.hidden {
+    display: none;
+}
+
+.suggestion-arrow {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6em;
+    font-weight: bold;
+    color: #776e65;
+    background: rgba(255, 255, 255, 0.85);
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s ease;
+    opacity: 0.55;
+}
+
+.suggestion-arrow.up    { top: 4px;    left: 50%;  transform: translateX(-50%); }
+.suggestion-arrow.down  { bottom: 4px; left: 50%;  transform: translateX(-50%); }
+.suggestion-arrow.left  { left: 4px;   top: 50%;   transform: translateY(-50%); }
+.suggestion-arrow.right { right: 4px;  top: 50%;   transform: translateY(-50%); }
+
+.suggestion-arrow.illegal {
+    opacity: 0.18;
+    background: rgba(180, 180, 180, 0.6);
+    color: #999;
+}
+
+.suggestion-arrow.best {
+    background: #f39c12;
+    color: #fff;
+    opacity: 1;
+    box-shadow: 0 0 12px rgba(243, 156, 18, 0.9);
+    animation: suggestion-pulse 1.4s ease-in-out infinite;
+}
+
+.suggestion-arrow.up.best    { transform: translateX(-50%) scale(1.1); }
+.suggestion-arrow.down.best  { transform: translateX(-50%) scale(1.1); }
+.suggestion-arrow.left.best  { transform: translateY(-50%) scale(1.1); }
+.suggestion-arrow.right.best { transform: translateY(-50%) scale(1.1); }
+
+@keyframes suggestion-pulse {
+    0%, 100% { box-shadow: 0 0 12px rgba(243, 156, 18, 0.9); }
+    50% { box-shadow: 0 0 22px rgba(243, 156, 18, 1); }
+}
+
+
 .game-over {
     position: absolute;
     top: 0;
@@ -680,7 +766,8 @@ body {
 
     .undo-button,
     .ai-toggle-button,
-    .delete-mode-button {
+    .delete-mode-button,
+    .suggest-toggle-button {
         width: 38px;
         height: 38px;
         padding: 6px;
@@ -689,10 +776,21 @@ body {
     .undo-button svg,
     .ai-toggle-button svg,
     .delete-mode-button svg,
+    .suggest-toggle-button svg,
     .ranking-button svg {
         width: 20px;
         height: 20px;
     }
+
+    .suggestion-arrow {
+        width: 36px;
+        height: 36px;
+        font-size: 1.3em;
+    }
+    .suggestion-arrow.up    { top: 4px;    }
+    .suggestion-arrow.down  { bottom: 4px; }
+    .suggestion-arrow.left  { left: 4px;   }
+    .suggestion-arrow.right { right: 4px;  }
 
     .instructions {
         margin-top: 5px;

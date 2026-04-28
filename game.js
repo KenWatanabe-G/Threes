@@ -53,6 +53,12 @@ class ThreesGame {
         this.aiPending = null;   // { requestId, scores: number[4], received: number, moves: number[] }
         this.aiIndicatorElement = document.getElementById('ai-indicator');
 
+        // 次の最善手サジェスト機能
+        this.suggestEnabled = false;
+        this.suggestWorker = null;
+        this.suggestRequestId = 0;
+        this.suggestOverlayElement = document.getElementById('suggestion-overlay');
+
         // ランキング用フラグ
         this.usedUndo = false;      // Undoを使用したか
         this.usedDelete = false;    // 削除機能を使用したか
@@ -422,6 +428,11 @@ class ThreesGame {
             this.toggleAI();
         });
 
+        // サジェストボタン (次の最善手を提案)
+        document.getElementById('suggest-toggle').addEventListener('click', () => {
+            this.toggleSuggest();
+        });
+
         // クリップボードコピーボタン
         document.getElementById('copy-board-button').addEventListener('click', () => {
             this.copyBoardToClipboard();
@@ -460,6 +471,10 @@ class ThreesGame {
         this.aiIndicatorElement.classList.remove('hidden');
         this.updateUndoButton();
 
+        // AI ON の間はサジェストの矢印は出さない (サジェストトグルの状態は保持)
+        this.hideSuggestion();
+        document.getElementById('suggest-toggle').disabled = true;
+
         if (this.aiWorkers.length === 0) {
             for (let i = 0; i < this.aiPoolSize; i++) {
                 let w;
@@ -490,6 +505,12 @@ class ThreesGame {
         button.classList.remove('active');
         this.aiIndicatorElement.classList.add('hidden');
         this.updateUndoButton();
+
+        // AI 停止後、サジェストトグルが ON のままなら再開
+        document.getElementById('suggest-toggle').disabled = false;
+        if (this.suggestEnabled && !this.isGameOver()) {
+            this.requestSuggestion();
+        }
     }
 
     // root move 4 つを Worker pool に fan-out
@@ -553,6 +574,94 @@ class ThreesGame {
         }
         const moveNames = ['up', 'down', 'left', 'right'];
         this.move(moveNames[bestMove]);
+    }
+
+    // ---- 次の最善手サジェスト ----
+
+    toggleSuggest() {
+        const button = document.getElementById('suggest-toggle');
+        if (this.suggestEnabled) {
+            this.suggestEnabled = false;
+            button.classList.remove('active');
+            this.hideSuggestion();
+            return;
+        }
+        if (this.aiMode) return;
+        this.suggestEnabled = true;
+        button.classList.add('active');
+        this.requestSuggestion();
+    }
+
+    requestSuggestion() {
+        if (!this.suggestEnabled) return;
+        if (this.aiMode || this.isMoving) return;
+        if (this.isGameOver()) {
+            this.hideSuggestion();
+            return;
+        }
+        if (!this.suggestWorker) {
+            try {
+                this.suggestWorker = new Worker('ai/worker.js');
+            } catch (e) {
+                console.error('suggest worker construction failed:', e.message);
+                this.suggestEnabled = false;
+                document.getElementById('suggest-toggle').classList.remove('active');
+                return;
+            }
+            this.suggestWorker.addEventListener('message', (ev) => this.handleSuggestionMessage(ev));
+            this.suggestWorker.addEventListener('error', (ev) => {
+                console.error('suggest worker error:', ev.message);
+            });
+        }
+        const requestId = ++this.suggestRequestId;
+        this.suggestWorker.postMessage({
+            type: 'suggest',
+            requestId,
+            grid: this.getValueGrid(),
+            deck: [...this.deck],
+            nextTileValue: this.nextTileValue,
+            nextTileIsBonus: this.nextTileIsBonus
+        });
+    }
+
+    handleSuggestionMessage(event) {
+        const { type, requestId, perMove } = event.data || {};
+        if (type !== 'suggest') return;
+        if (requestId !== this.suggestRequestId) return; // 古いレスポンスを破棄
+        if (!this.suggestEnabled) return;
+        this.renderSuggestion(perMove || []);
+    }
+
+    renderSuggestion(perMove) {
+        const overlay = this.suggestOverlayElement;
+        if (!overlay) return;
+
+        const legalMoves = perMove.filter(m => m.legal);
+        if (legalMoves.length === 0) {
+            this.hideSuggestion();
+            return;
+        }
+        const best = legalMoves.reduce((a, b) => (a.score >= b.score ? a : b));
+
+        const dirs = ['up', 'down', 'left', 'right'];
+        dirs.forEach((dir) => {
+            const arrow = overlay.querySelector(`.suggestion-arrow.${dir}`);
+            if (!arrow) return;
+            const m = perMove.find(p => p.move === dir);
+            arrow.classList.toggle('illegal', !m || !m.legal);
+            arrow.classList.toggle('best', !!m && m.legal && m.move === best.move);
+        });
+        overlay.classList.remove('hidden');
+    }
+
+    hideSuggestion() {
+        if (!this.suggestOverlayElement) return;
+        this.suggestOverlayElement.classList.add('hidden');
+        const arrows = this.suggestOverlayElement.querySelectorAll('.suggestion-arrow');
+        arrows.forEach(a => {
+            a.classList.remove('best');
+            a.classList.remove('illegal');
+        });
     }
 
     // タイル ID のグリッドではなく、各セルの値 (0 = 空) のグリッドを返す
@@ -729,6 +838,13 @@ class ThreesGame {
 
         // 盤面からスコアを計算
         this.updateScore();
+
+        // サジェスト ON なら新しい盤面で再計算
+        if (this.suggestEnabled) {
+            this.requestSuggestion();
+        } else {
+            this.hideSuggestion();
+        }
     }
 
     generateNextTile() {
@@ -801,6 +917,9 @@ class ThreesGame {
         // 移動前に状態を保存（Undo用）
         this.saveState();
 
+        // 移動が始まる前にサジェスト表示をクリア (古い矢印が残らないように)
+        this.hideSuggestion();
+
         this.isMoving = true;
 
         // マージフラグをリセット & ドラッグ中のtransformをクリア
@@ -855,6 +974,10 @@ class ThreesGame {
                     this.saveGameState();
                     // AI 動作中なら次の手を要求
                     if (this.aiMode) this.requestAINextMove();
+                    // サジェスト ON なら新しい盤面で再計算
+                    else if (this.suggestEnabled && !this.isGameOver()) {
+                        this.requestSuggestion();
+                    }
                 }, 20);
             }, 120);
         } else {
@@ -1144,6 +1267,9 @@ class ThreesGame {
     endGame() {
         // AI停止
         if (this.aiMode) this.stopAI();
+
+        // サジェスト UI も非表示にする (トグル状態は保持)
+        this.hideSuggestion();
 
         // プレイ回数をインクリメント（ゲームオーバー時にカウント）
         this.playCount++;
@@ -1496,6 +1622,13 @@ class ThreesGame {
 
         // ゲーム状態を自動保存
         this.saveGameState();
+
+        // サジェスト ON なら戻った盤面で再計算
+        if (this.suggestEnabled && !this.isGameOver()) {
+            this.requestSuggestion();
+        } else {
+            this.hideSuggestion();
+        }
     }
 
     updateUndoButton() {
@@ -2104,6 +2237,13 @@ class ThreesGame {
         // ゲームオーバー状態だった場合は表示
         if (state.gameOver) {
             this.endGame();
+        }
+
+        // サジェスト ON なら復元盤面で再計算
+        if (this.suggestEnabled && !state.gameOver) {
+            this.requestSuggestion();
+        } else {
+            this.hideSuggestion();
         }
     }
 

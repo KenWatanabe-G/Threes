@@ -27,11 +27,27 @@ function buildNextBricks(nextTileValue, nextTileIsBonus, bb) {
 }
 
 self.addEventListener('message', (event) => {
-    const { requestId, grid, deck, nextTileValue, nextTileIsBonus, rootMove } = event.data;
+    const { requestId, grid, deck, nextTileValue, nextTileIsBonus, rootMove, type } = event.data;
     try {
         const bb = valuesToBB(grid);
         const candidate = candidateFromDeck(deck);
         const nextBricks = buildNextBricks(nextTileValue, nextTileIsBonus, bb);
+
+        if (type === 'suggest') {
+            // 4 方向すべてを順に評価して合法手とスコアを返す (UI 表示用)
+            const perMove = [];
+            for (let m = 0; m < 4; m++) {
+                const moved = makeMove(bb, m);
+                if (moved.changeNum === 0) {
+                    perMove.push({ move: MOVE_NAMES[m], legal: false });
+                    continue;
+                }
+                const score = rootEvaluate(bb, candidate, nextBricks, m);
+                perMove.push({ move: MOVE_NAMES[m], legal: true, score });
+            }
+            self.postMessage({ requestId, type: 'suggest', perMove });
+            return;
+        }
 
         if (rootMove !== undefined && rootMove !== null) {
             // マルチ Worker モード: 単一の root move のスコアだけ返す
@@ -44,6 +60,10 @@ self.addEventListener('message', (event) => {
             self.postMessage({ requestId, move });
         }
     } catch (err) {
-        self.postMessage({ requestId, move: null, error: err.message });
+        if (type === 'suggest') {
+            self.postMessage({ requestId, type: 'suggest', perMove: [], error: err.message });
+        } else {
+            self.postMessage({ requestId, move: null, error: err.message });
+        }
     }
 });

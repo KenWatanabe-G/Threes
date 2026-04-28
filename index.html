@@ -54,6 +54,13 @@
                         <path d="M8 6V5c0-1 1-2 2-2h4c1 0 2 1 2 2v1"/>
                     </svg>
                 </button>
+                <button id="suggest-toggle" class="suggest-toggle-button" title="次の最善手を提案">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                        <path d="M12 2a7 7 0 0 0-4 12.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26A7 7 0 0 0 12 2z"/>
+                        <rect x="9" y="19" width="6" height="1.5" rx="0.5"/>
+                        <rect x="10" y="21" width="4" height="1.5" rx="0.5"/>
+                    </svg>
+                </button>
                 <button id="ai-toggle" class="ai-toggle-button" title="AI自動操作">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
                         <circle cx="12" cy="2" r="1.5"/>
@@ -90,6 +97,12 @@
             </div>
             <div id="ai-indicator" class="ai-indicator hidden">
                 <span>🤖 AI操作中...</span>
+            </div>
+            <div id="suggestion-overlay" class="suggestion-overlay hidden" aria-hidden="true">
+                <div class="suggestion-arrow up" data-move="up">↑</div>
+                <div class="suggestion-arrow down" data-move="down">↓</div>
+                <div class="suggestion-arrow left" data-move="left">←</div>
+                <div class="suggestion-arrow right" data-move="right">→</div>
             </div>
             <div id="game-over" class="game-over hidden">
                 <h2>ゲームオーバー</h2>

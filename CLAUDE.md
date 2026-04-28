@@ -40,6 +40,7 @@
 - UI更新とイベント処理
 - ドラッグ＆スワイプ処理
 - AI Worker との通信 (`startAI` / `stopAI` / `requestAINextMove`)
+- 次の最善手サジェスト (`toggleSuggest` / `requestSuggestion` / `handleSuggestionMessage` / `renderSuggestion` / `hideSuggestion`)
 
 #### `style.css` - スタイリング
 - PC向けレイアウト
@@ -51,7 +52,7 @@
 - **`board.js`**: 盤面のランク表現 (0-15) と移動シミュレータ。`makeMove`、`insertBrick`、`maxElement`、`findDiffCount`、`calculateVariance`
 - **`heuristic.js`**: 65536 エントリの評価テーブル (`empty` / `merges` / `1-2 merges` / `monotonicity` / `sum`) を起動時に初期化、`getHeurWeightScore` で行/列ごとに参照
 - **`expectimax.js`**: Expectimax 探索本体。`expectSearch` がトップレベル、`deptSearch` → `heurSearch` → `insertHeurSearch` → `recursionDeptSearch` の再帰
-- **`worker.js`**: Worker エントリ。`importScripts` で上記を読み込み、メインスレッドからの `{ grid, deck, nextTileValue, nextTileIsBonus }` 要求に最適 move を返す
+- **`worker.js`**: Worker エントリ。`importScripts` で上記を読み込み、メインスレッドからの `{ grid, deck, nextTileValue, nextTileIsBonus }` 要求に最適 move を返す。`type: 'suggest'` で 4 方向すべての (合法/違法、スコア) を 1 メッセージで返却
 
 [halfrost/threes-ai](https://github.com/halfrost/threes-ai) (Go) からの移植。動的探索深度・キャッシュ (BigInt ハッシュ) でパフォーマンスを確保。
 
@@ -285,6 +286,16 @@ deptLevel(board) {
 ### Web Worker
 
 AI 計算は `ai/worker.js` で別スレッド実行。メインスレッドは `postMessage` で要求を投げ、`onmessage` で `move` を受け取る。リクエスト ID で古いレスポンスを破棄するため、AI を途中で停止しても安全。
+
+### 次の最善手サジェスト機能
+
+AI ロジックを流用した「ヒント」機能。AI 自動プレイとは別系統の独立 Worker で、毎手の直後に 4 方向すべてのスコアを 1 メッセージで取得する。
+
+- **トグル**: `#suggest-toggle` (電球アイコン)。クリックで ON/OFF (`toggleSuggest`)
+- **Worker 通信**: 専用 `suggestWorker` を 1 つ確保 (AI 用 4 Worker プールとは独立)。`postMessage({ type: 'suggest', requestId, grid, deck, nextTileValue, nextTileIsBonus })` で送信し、`{ type: 'suggest', requestId, perMove: [{move, legal, score}, ...] }` を 1 メッセージで受信
+- **UI 表示**: 盤面の縁に 4 方向の矢印 (`.suggestion-arrow`) を絶対配置。最善手は `.best` で黄色強調 + パルスアニメ、違法手は `.illegal` で半透明グレー、その他の合法手は半透明白
+- **ライフサイクル**: `move()` 開始時に `hideSuggestion()`、移動完了 + 自動保存後に `requestSuggestion()` を再発行。`startAI()` 時はトグル無効化 + UI 非表示、`stopAI()` で復帰。`startGame` / `undo` / `restoreGameState` / `endGame` でも適切に再計算/非表示
+- **ランキング/レーティング**: AI 使用や Undo と異なり「ヒント」程度の補助として通常カテゴリのまま、レートも変動する。`usedSuggest` フラグや確認ダイアログは持たない
 
 ### AI 使用時のランキング/レーティング扱い
 
