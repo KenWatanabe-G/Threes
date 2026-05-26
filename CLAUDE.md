@@ -297,6 +297,23 @@ AI ロジックを流用した「ヒント」機能。AI 自動プレイとは�
 - **ライフサイクル**: `move()` 開始時に `hideSuggestion()`、移動完了 + 自動保存後に `requestSuggestion()` を再発行。`startAI()` 時はトグル無効化 + UI 非表示、`stopAI()` で復帰。`startGame` / `undo` / `restoreGameState` / `endGame` でも適切に再計算/非表示
 - **ランキング/レーティング**: AI 使用や Undo と異なり「ヒント」程度の補助として通常カテゴリのまま、レートも変動する。`usedSuggest` フラグや確認ダイアログは持たない
 
+### レート推移グラフ
+
+ゲーム終了時のプレイヤーレートを時系列で可視化する機能。
+
+- **データ**: `skillStats.ratingHistory: [{ ts, rating, delta, playRating, category, score, maxTile, locked }]`
+  - `ts`: `Date.now()` のミリ秒UNIX時刻
+  - `category`: `normal` / `with_undo` / `anything_goes`
+  - `locked`: Undo・AI・削除で `true`（rating は変動せず、その時点の rating を点として記録）
+  - 上限なしで全件保持 (`pushRatingHistoryEntry`)
+- **追記タイミング**: `updatePlayerRatingFromPlay` と `getRatingSummaryWithoutChange` の両方から `pushRatingHistoryEntry` を呼ぶ
+- **UI**: `#rating-history-button` (折れ線アイコン) → `#rating-history-panel` モーダル
+- **描画**: Chart.js 4.4.6 (jsdelivr CDN同期読込)。`type: 'line'`
+  - ベースの折れ線 + ピークレートの水平点線 + カテゴリ別の点 (`normal=#9b59b6` / `with_undo=#e67e22` / `anything_goes=#95a5a6`)
+  - tooltip: プレイ番号 / カテゴリ / rating / delta / score / maxTile
+  - legend クリックでカテゴリ別表示ON/OFF（自前フィルターUIは持たない）
+- **インスタンス管理**: `this.ratingHistoryChart` を保持し、再描画/閉じる時に `destroy()`
+
 ### AI 使用時のランキング/レーティング扱い
 
 AI を 1 手でも使ったプレイは Undo・削除と同じ「補助手段」として扱う。

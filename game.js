@@ -73,6 +73,9 @@ class ThreesGame {
         // プレイヤースキルレーティング
         this.skillStats = this.loadSkillStats();
 
+        // レート推移グラフ
+        this.ratingHistoryChart = null;
+
         this.init();
     }
 
@@ -1358,7 +1361,8 @@ class ThreesGame {
             lastPlayRating: null,
             lastDelta: 0,
             lastCategory: 'normal',
-            recentPlayRatings: []
+            recentPlayRatings: [],
+            ratingHistory: []
         };
     }
 
@@ -1373,7 +1377,8 @@ class ThreesGame {
             return {
                 ...this.getDefaultSkillStats(),
                 ...parsed,
-                recentPlayRatings: Array.isArray(parsed.recentPlayRatings) ? parsed.recentPlayRatings : []
+                recentPlayRatings: Array.isArray(parsed.recentPlayRatings) ? parsed.recentPlayRatings : [],
+                ratingHistory: Array.isArray(parsed.ratingHistory) ? parsed.ratingHistory : []
             };
         } catch (e) {
             console.error('プレイヤースキルデータの読み込みに失敗しました:', e);
@@ -1438,6 +1443,13 @@ class ThreesGame {
         this.skillStats.lastCategory = category;
         this.skillStats.recentPlayRatings.push(playRating);
         this.skillStats.recentPlayRatings = this.skillStats.recentPlayRatings.slice(-20);
+        this.pushRatingHistoryEntry({
+            rating: nextRating,
+            delta,
+            playRating,
+            category,
+            locked: false
+        });
         this.saveSkillStats();
 
         return {
@@ -1448,6 +1460,15 @@ class ThreesGame {
     }
 
     getRatingSummaryWithoutChange(playRating, category = this.getRankingCategory()) {
+        this.pushRatingHistoryEntry({
+            rating: this.skillStats.rating,
+            delta: 0,
+            playRating,
+            category,
+            locked: true
+        });
+        this.saveSkillStats();
+
         return {
             previousRating: this.skillStats.rating,
             nextRating: this.skillStats.rating,
@@ -1456,6 +1477,22 @@ class ThreesGame {
             ratingLocked: true,
             playRating
         };
+    }
+
+    pushRatingHistoryEntry({ rating, delta, playRating, category, locked }) {
+        if (!Array.isArray(this.skillStats.ratingHistory)) {
+            this.skillStats.ratingHistory = [];
+        }
+        this.skillStats.ratingHistory.push({
+            ts: Date.now(),
+            rating,
+            delta,
+            playRating,
+            category,
+            score: this.score,
+            maxTile: this.getMaxTileValue(),
+            locked
+        });
     }
 
     updateRatingDisplay() {
@@ -2555,6 +2592,188 @@ class ThreesGame {
         }
     }
 
+    // レート推移パネルを表示
+    showRatingHistory() {
+        const panel = document.getElementById('rating-history-panel');
+        if (!panel) return;
+        panel.classList.remove('hidden');
+        this.renderRatingHistorySummary();
+        this.renderRatingHistoryChart();
+    }
+
+    // レート推移パネルを閉じる
+    hideRatingHistoryPanel() {
+        const panel = document.getElementById('rating-history-panel');
+        if (panel) {
+            panel.classList.add('hidden');
+        }
+        if (this.ratingHistoryChart) {
+            this.ratingHistoryChart.destroy();
+            this.ratingHistoryChart = null;
+        }
+    }
+
+    renderRatingHistorySummary() {
+        const el = document.getElementById('rating-history-summary');
+        if (!el) return;
+        const history = Array.isArray(this.skillStats.ratingHistory) ? this.skillStats.ratingHistory : [];
+        const totalPlays = this.skillStats.plays || 0;
+        el.innerHTML = `
+            <span><strong>現在:</strong> ${this.skillStats.rating} (${this.getRatingTier(this.skillStats.rating)})</span>
+            <span><strong>最高:</strong> ${this.skillStats.peakRating}</span>
+            <span><strong>プレイ数:</strong> ${totalPlays}</span>
+            <span><strong>記録数:</strong> ${history.length}</span>
+        `;
+    }
+
+    renderRatingHistoryChart() {
+        const canvas = document.getElementById('rating-history-chart');
+        const emptyMsg = document.getElementById('rating-history-empty');
+        if (!canvas) return;
+
+        const history = Array.isArray(this.skillStats.ratingHistory) ? this.skillStats.ratingHistory : [];
+
+        if (this.ratingHistoryChart) {
+            this.ratingHistoryChart.destroy();
+            this.ratingHistoryChart = null;
+        }
+
+        if (history.length === 0) {
+            canvas.classList.add('hidden');
+            if (emptyMsg) emptyMsg.classList.remove('hidden');
+            return;
+        }
+        canvas.classList.remove('hidden');
+        if (emptyMsg) emptyMsg.classList.add('hidden');
+
+        if (typeof Chart === 'undefined') {
+            if (emptyMsg) {
+                emptyMsg.textContent = 'グラフライブラリの読み込みに失敗しました。';
+                emptyMsg.classList.remove('hidden');
+            }
+            canvas.classList.add('hidden');
+            return;
+        }
+
+        const categoryColor = {
+            normal: '#9b59b6',
+            with_undo: '#e67e22',
+            anything_goes: '#95a5a6'
+        };
+        const categoryLabel = {
+            normal: '通常',
+            with_undo: 'アンドゥあり',
+            anything_goes: 'なんでもあり'
+        };
+
+        // 全件を結ぶライン
+        const linePoints = history.map((h, i) => ({ x: i + 1, y: h.rating }));
+
+        // カテゴリ別の点
+        const pointDatasets = ['normal', 'with_undo', 'anything_goes'].map(cat => ({
+            label: categoryLabel[cat],
+            data: history
+                .map((h, i) => ({ x: i + 1, y: h.rating, entry: h, index: i }))
+                .filter(p => p.entry.category === cat),
+            backgroundColor: categoryColor[cat],
+            borderColor: categoryColor[cat],
+            showLine: false,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointStyle: 'circle'
+        }));
+
+        // ピークレート水平線
+        const peak = this.skillStats.peakRating;
+        const peakDataset = {
+            label: `最高 ${peak}`,
+            data: [
+                { x: 1, y: peak },
+                { x: Math.max(history.length, 1), y: peak }
+            ],
+            borderColor: '#d4af37',
+            borderDash: [6, 4],
+            borderWidth: 1.5,
+            pointRadius: 0,
+            fill: false,
+            tension: 0
+        };
+
+        // ベース折れ線
+        const baseLine = {
+            label: 'レート',
+            data: linePoints,
+            borderColor: '#776e65',
+            backgroundColor: 'rgba(119, 110, 101, 0.08)',
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.25,
+            fill: true
+        };
+
+        const ratings = history.map(h => h.rating);
+        const minR = Math.min(...ratings, peak);
+        const maxR = Math.max(...ratings, peak);
+        const span = Math.max(maxR - minR, 100);
+        const pad = Math.ceil(span * 0.1);
+
+        const ctx = canvas.getContext('2d');
+        this.ratingHistoryChart = new Chart(ctx, {
+            type: 'line',
+            data: { datasets: [baseLine, peakDataset, ...pointDatasets] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'nearest', intersect: false },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#776e65', boxWidth: 12 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: (items) => {
+                                if (!items.length) return '';
+                                const idx = items[0].parsed.x;
+                                return `プレイ #${idx}`;
+                            },
+                            label: (item) => {
+                                const ds = item.dataset;
+                                const raw = item.raw;
+                                if (ds.label && ds.label.startsWith('最高')) {
+                                    return `最高レート ${peak}`;
+                                }
+                                if (raw && raw.entry) {
+                                    const e = raw.entry;
+                                    const sign = e.delta > 0 ? '+' : '';
+                                    const lockTag = e.locked ? ' (変動なし)' : '';
+                                    const deltaTxt = e.locked ? '±0' : `${sign}${e.delta}`;
+                                    return `${categoryLabel[e.category] || e.category}: ${e.rating} (${deltaTxt})${lockTag} / score ${e.score} / max ${e.maxTile}`;
+                                }
+                                return `レート ${item.parsed.y}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'linear',
+                        title: { display: true, text: 'プレイ番号', color: '#776e65' },
+                        ticks: { color: '#776e65', precision: 0 },
+                        grid: { color: 'rgba(119, 110, 101, 0.1)' }
+                    },
+                    y: {
+                        suggestedMin: Math.max(0, minR - pad),
+                        suggestedMax: maxR + pad,
+                        title: { display: true, text: 'レート', color: '#776e65' },
+                        ticks: { color: '#776e65' },
+                        grid: { color: 'rgba(119, 110, 101, 0.1)' }
+                    }
+                }
+            }
+        });
+    }
+
     // HTMLエスケープ
     escapeHtml(text) {
         const div = document.createElement('div');
@@ -2577,6 +2796,30 @@ class ThreesGame {
         if (closeRankingPanel) {
             closeRankingPanel.addEventListener('click', () => {
                 this.hideRankingPanel();
+            });
+        }
+
+        // レート推移ボタン
+        const historyButton = document.getElementById('rating-history-button');
+        if (historyButton) {
+            historyButton.addEventListener('click', () => {
+                this.showRatingHistory();
+            });
+        }
+
+        const closeHistoryPanel = document.getElementById('close-rating-history-panel');
+        if (closeHistoryPanel) {
+            closeHistoryPanel.addEventListener('click', () => {
+                this.hideRatingHistoryPanel();
+            });
+        }
+
+        const historyPanel = document.getElementById('rating-history-panel');
+        if (historyPanel) {
+            historyPanel.addEventListener('click', (e) => {
+                if (e.target === historyPanel) {
+                    this.hideRatingHistoryPanel();
+                }
             });
         }
 

@@ -1165,3 +1165,120 @@ body {
 .confirm-button:active {
     transform: scale(0.95);
 }
+
+/* レート推移ボタン */
+.rating-history-button {
+    background: #FAF8EF;
+    border: 2px solid #bbada0;
+    border-radius: 8px;
+    padding: 8px;
+    cursor: pointer;
+    color: #9b59b6;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rating-history-button:hover {
+    background: #f0e8d8;
+    transform: translateY(-1px);
+}
+
+.rating-history-button:active {
+    transform: scale(0.95);
+}
+
+/* レート推移パネル */
+.rating-history-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.rating-history-panel.hidden {
+    display: none;
+}
+
+.rating-history-panel-content {
+    background: #FAF8EF;
+    border-radius: 15px;
+    padding: 25px;
+    width: 90%;
+    max-width: 720px;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.rating-history-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.rating-history-panel-header h2 {
+    color: #776e65;
+    font-size: 1.8em;
+    margin: 0;
+}
+
+.rating-history-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    color: #776e65;
+    font-size: 0.95em;
+    margin-bottom: 15px;
+    padding: 10px 12px;
+    background: rgba(155, 89, 182, 0.08);
+    border-radius: 8px;
+}
+
+.rating-history-chart-wrapper {
+    position: relative;
+    width: 100%;
+    height: 320px;
+    margin-bottom: 10px;
+}
+
+.rating-history-chart-wrapper canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.rating-history-chart-wrapper canvas.hidden {
+    display: none;
+}
+
+.rating-history-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    font-size: 0.95em;
+    text-align: center;
+    padding: 20px;
+    margin: 0;
+}
+
+.rating-history-empty.hidden {
+    display: none;
+}
+
+.rating-history-hint {
+    color: #999;
+    font-size: 0.8em;
+    text-align: center;
+    margin: 0;
+}

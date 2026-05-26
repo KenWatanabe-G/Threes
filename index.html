@@ -84,6 +84,16 @@
                         <rect x="16" y="9" width="5" height="12" rx="1"/>
                     </svg>
                 </button>
+                <button id="rating-history-button" class="rating-history-button" title="レート推移">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3,17 8,12 12,15 17,8 21,11"/>
+                        <circle cx="3" cy="17" r="1.4" fill="currentColor"/>
+                        <circle cx="8" cy="12" r="1.4" fill="currentColor"/>
+                        <circle cx="12" cy="15" r="1.4" fill="currentColor"/>
+                        <circle cx="17" cy="8" r="1.4" fill="currentColor"/>
+                        <circle cx="21" cy="11" r="1.4" fill="currentColor"/>
+                    </svg>
+                </button>
             </div>
             <div class="next-tile-preview">
                 <span class="next-label">次のタイル:</span>
@@ -185,6 +195,22 @@
         </div>
     </div>
 
+    <!-- レート推移パネル -->
+    <div id="rating-history-panel" class="rating-history-panel hidden">
+        <div class="rating-history-panel-content">
+            <div class="rating-history-panel-header">
+                <h2>レート推移</h2>
+                <button id="close-rating-history-panel" class="close-button">×</button>
+            </div>
+            <div class="rating-history-summary" id="rating-history-summary"></div>
+            <div class="rating-history-chart-wrapper">
+                <canvas id="rating-history-chart" width="600" height="280"></canvas>
+                <p id="rating-history-empty" class="rating-history-empty hidden">まだレート履歴がありません。ゲームを終了すると記録されます。</p>
+            </div>
+            <p class="rating-history-hint">凡例をクリックするとカテゴリ表示を切り替えできます</p>
+        </div>
+    </div>
+
     <!-- 確認ダイアログ -->
     <div id="confirm-dialog" class="confirm-dialog hidden">
         <div class="confirm-dialog-content">
@@ -203,6 +229,7 @@
 
     <!-- ローカル設定（存在する場合のみ読み込み） -->
     <script src="config.local.js" onerror="console.log('config.local.js not found, using default config')"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
     <script src="game.js"></script>
 </body>
 </html>
