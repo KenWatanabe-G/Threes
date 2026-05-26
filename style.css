@@ -132,7 +132,8 @@ body {
     display: flex;
     gap: 8px;
     justify-content: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    align-items: center;
 }
 
 .new-game-button {
@@ -767,7 +768,9 @@ body {
     .undo-button,
     .ai-toggle-button,
     .delete-mode-button,
-    .suggest-toggle-button {
+    .suggest-toggle-button,
+    .ranking-button,
+    .rating-history-button {
         width: 38px;
         height: 38px;
         padding: 6px;
@@ -777,7 +780,8 @@ body {
     .ai-toggle-button svg,
     .delete-mode-button svg,
     .suggest-toggle-button svg,
-    .ranking-button svg {
+    .ranking-button svg,
+    .rating-history-button svg {
         width: 20px;
         height: 20px;
     }
@@ -795,6 +799,71 @@ body {
     .instructions {
         margin-top: 5px;
         font-size: clamp(0.6em, 1.5vw, 0.7em);
+    }
+}
+
+/* スマホ縦向け: ボタン群を1行に収める */
+@media (max-width: 480px) {
+    .button-group {
+        gap: 5px;
+    }
+
+    .new-game-button {
+        padding: 6px 10px;
+        font-size: 0.7em;
+    }
+
+    .undo-button,
+    .ai-toggle-button,
+    .delete-mode-button,
+    .suggest-toggle-button,
+    .ranking-button,
+    .rating-history-button {
+        width: 36px;
+        height: 36px;
+        padding: 5px;
+    }
+
+    .undo-button svg,
+    .ai-toggle-button svg,
+    .delete-mode-button svg,
+    .suggest-toggle-button svg,
+    .ranking-button svg,
+    .rating-history-button svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+@media (max-width: 380px) {
+    .button-group {
+        gap: 4px;
+    }
+
+    .new-game-button {
+        padding: 5px 8px;
+        font-size: 0.65em;
+    }
+
+    .undo-button,
+    .ai-toggle-button,
+    .delete-mode-button,
+    .suggest-toggle-button,
+    .ranking-button,
+    .rating-history-button {
+        width: 32px;
+        height: 32px;
+        padding: 4px;
+    }
+
+    .undo-button svg,
+    .ai-toggle-button svg,
+    .delete-mode-button svg,
+    .suggest-toggle-button svg,
+    .ranking-button svg,
+    .rating-history-button svg {
+        width: 16px;
+        height: 16px;
     }
 }
 
