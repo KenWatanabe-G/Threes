@@ -2656,25 +2656,30 @@ class ThreesGame {
         }
 
         const categoryColor = {
-            normal: '#9b59b6',
-            with_undo: '#e67e22',
-            anything_goes: '#95a5a6'
+            normal: '#9b59b6'
         };
         const categoryLabel = {
-            normal: '通常',
-            with_undo: 'アンドゥあり',
-            anything_goes: 'なんでもあり'
+            normal: '通常'
         };
 
-        // 全件を結ぶライン
-        const linePoints = history.map((h, i) => ({ x: i + 1, y: h.rating }));
+        // 通常カテゴリのみ抽出 (アンドゥ/なんでもありはレート不変のため非表示)
+        const normalHistory = history.filter(h => h.category === 'normal');
 
-        // カテゴリ別の点
-        const pointDatasets = ['normal', 'with_undo', 'anything_goes'].map(cat => ({
+        if (normalHistory.length === 0) {
+            canvas.classList.add('hidden');
+            if (emptyMsg) {
+                emptyMsg.textContent = '通常カテゴリのプレイ履歴がまだありません。';
+                emptyMsg.classList.remove('hidden');
+            }
+            return;
+        }
+
+        // 通常プレイのみで再採番した折れ線
+        const linePoints = normalHistory.map((h, i) => ({ x: i + 1, y: h.rating, entry: h }));
+
+        const pointDatasets = ['normal'].map(cat => ({
             label: categoryLabel[cat],
-            data: history
-                .map((h, i) => ({ x: i + 1, y: h.rating, entry: h, index: i }))
-                .filter(p => p.entry.category === cat),
+            data: normalHistory.map((h, i) => ({ x: i + 1, y: h.rating, entry: h })),
             backgroundColor: categoryColor[cat],
             borderColor: categoryColor[cat],
             showLine: false,
@@ -2689,7 +2694,7 @@ class ThreesGame {
             label: `最高 ${peak}`,
             data: [
                 { x: 1, y: peak },
-                { x: Math.max(history.length, 1), y: peak }
+                { x: Math.max(normalHistory.length, 1), y: peak }
             ],
             borderColor: '#d4af37',
             borderDash: [6, 4],
@@ -2711,7 +2716,7 @@ class ThreesGame {
             fill: true
         };
 
-        const ratings = history.map(h => h.rating);
+        const ratings = normalHistory.map(h => h.rating);
         const minR = Math.min(...ratings, peak);
         const maxR = Math.max(...ratings, peak);
         const span = Math.max(maxR - minR, 100);
